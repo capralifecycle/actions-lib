@@ -1,0 +1,46 @@
+name: "upload-cdk-source"
+description: |
+  description: "Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline"
+  local: true
+inputs:
+  aws-s3-bucket-name:
+    description: "The name of the S3 bucket to upload the CDK source to"
+    required: true
+  include-files:
+    description: "A string of space-separated regular expressions that describe which files to include creating the CDK source"
+    default: 'assets cdk.json cdk.context.json package.*\.json src tsconfig\.json'
+  cdk-app-dir:
+    description: |
+      Path to the directory that contains the CDK application.
+
+      Defaults to the GitHub workspace directory.
+
+outputs:
+  cdk-source-metadata-file:
+    description: "The path to a file describing the S3 bucket and S3 key of the uploaded CDK source"
+    value: ${{ steps.upload.outputs.cdk-source-metadata-file }}
+runs:
+  using: "composite"
+  steps:
+    - name: create and upload cdk source
+      id: upload
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
+        INPUT_INCLUDE_FILES: ${{ inputs.include-files }}
+        INPUT_CDK_APP_DIR: ${{ inputs.cdk-app-dir }}
+      run: |
+        cdk_source_dir="${INPUT_CDK_APP_DIR:-$GITHUB_WORKSPACE}"
+        cd "$cdk_source_dir"
+        tmp_dir="/tmp/${GITHUB_ACTION:-$(date -u +%s)}"
+        mkdir -p "$tmp_dir"
+        cdk_source_archive="$tmp_dir/cdk-source.zip"
+        if [ ! -f "cdk.json" ]; then
+          echo "No cdk.json file found in '$cdk_source_dir'. You may need to set the 'cdk-app-dir' input."
+          exit 1
+        fi
+
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
+          --cdk-source-archive "$cdk_source_archive" \
+          --include-files "$INPUT_INCLUDE_FILES"

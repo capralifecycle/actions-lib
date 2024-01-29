@@ -1,0 +1,83 @@
+name: ci
+on:
+  push:
+    branches:
+      - "**"
+
+defaults:
+  run:
+    shell: bash
+
+concurrency: ci-${{ github.ref }}-${{ github.workflow }}
+
+jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+    permissions:
+      actions: read
+      id-token: write
+      contents: read
+  verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: install shellcheck
+        run: |
+          target_shellcheck_version="0.9.0"
+          shellcheck_sha="157fd8b2c18a257f3876e23015580ea63d27b12c4f13f87d625a180e8ca042e7501271d15edeb36e7b5780da73815b45386a33e063ab1c891d838f35c778a8ac"
+          filename="shellcheck-v$target_shellcheck_version"
+          file_path="/tmp/$filename.tar.xz"
+          mkdir -p "/opt/$filename"
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v$target_shellcheck_version/$filename.linux.x86_64.tar.xz" -o "$file_path"
+          echo "${shellcheck_sha}  $file_path" | sha512sum -c -
+          tar -xJf "$file_path" -C "/opt/$filename" --strip-components=1 --no-same-owner
+          export "PATH=/opt/$filename:$PATH"
+          current_shellcheck_version="$(shellcheck --version | sed -n "s/^version: \(.*\)$/\1/p")"
+          if [ "$current_shellcheck_version" != "$target_shellcheck_version" ]; then
+            exit 1
+          fi
+      - name: run shellcheck
+        run: |
+          has_failed="false"
+          while read -r -d '' file; do
+            if ! current_result="$(shellcheck --severity=warning --color=never "$file")"; then
+              has_failed="true"
+              echo "--- $file ---"
+              echo "$current_result"
+              echo ""
+              echo ""
+            fi
+          done < <(find "." ! -path "*/.git/*" -wholename "*.sh" -print0)
+          if [ "$has_failed" != "false" ]; then
+            exit 1
+          fi
+      - name: verify docs are up-to-date
+        run: |
+          python -m pip install "pyyaml==6.0.1"
+          diff <(python generate-docs.py README.md) README.md || { cat <<EOF
+          The documentation is not up-to-date. Run the following command to update:
+          printf "%s\n" "\$(python generate-docs.py README.md)" > README.md
+          EOF
+          exit 1
+          }
+  conditional-release:
+    needs:
+      - verify
+      - test
+    runs-on: ubuntu-22.04
+    if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/setup-node@b39b52d1213e96004bfcb1c61a8a6fa8ab84f3e8 # v4.0.1
+        with:
+          node-version: 18
+      - name: "install npm dependencies"
+        run: npm ci
+      - name: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run semantic-release

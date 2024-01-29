@@ -1,0 +1,27 @@
+name: "Check runtime dependencies"
+description: |
+  description: "Check if the runtime has the expected dependencies"
+  local: false
+inputs:
+  dependencies:
+    description: "A space-delimited string of runtime dependencies to check for."
+    default: "bash curl git zip aws jq"
+runs:
+  using: "composite"
+  steps:
+    - name: check dependencies
+      shell: sh
+      env:
+        INPUT_DEPENDENCIES: ${{ inputs.dependencies }}
+      run: |
+        check_dependencies() {
+          for item in "$@"; do
+            while read -r dependency; do
+              test "$(command -v "$dependency")" = "" && missing="${missing:-}${missing:+, }$dependency"
+            done <<EOF
+        $(echo "$item" | tr ' ' '\n')
+        EOF
+          done
+          test "${missing:-}" = "" || { printf "The following required dependencies are missing: %s\n" "$missing" 1>&2 && exit 1; }
+        }
+        check_dependencies "$INPUT_DEPENDENCIES"

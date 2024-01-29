@@ -1,0 +1,66 @@
+name: "Slack notify"
+description: |
+  description: "Send notifications to Slack"
+  local: false
+inputs:
+  bot-token:
+    description: |
+      A GitHub Actions secret containing a Slack bot user token.
+
+      Either 'bot-token' or 'incoming-webhook-url' needs to be supplied.
+  incoming-webhook-url:
+    description: |
+      A GitHub Actions secret containing a Slack incoming webhook URL.
+
+      Either 'bot-token' or 'incoming-webhook-url' needs to be supplied.
+  channel:
+    description: |
+      The Slack channel to send notifications to (either a name '#my-channel' or an ID 'CXXXXXXXXXXX').
+  dry-run:
+    description: |
+      Whether to run the action in dry-mode and only validate inputs and return
+      the parsed JSON payload.
+    default: "false"
+  payload:
+    description: |
+      The payload to send to Slack.
+
+      By default this is set to a predefined payload containing information
+      about the job the action is running in.
+    default: |
+      {
+        "attachments": [
+          {
+            "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+            "pretext": "Job `${{ github.job }}` in GitHub Actions workflow `${{ github.workflow }}` ${{ job.status == 'success' && 'succeeded' || 'failed' }}",
+            "fallback": "GitHub Actions workflow job ${{ job.status == 'success' && 'succeeded' || 'failed' }}",
+            "mrkdwn_in": ["text", "pretext"],
+            "fields": [
+              {
+                "title": "Repository",
+                "value": "<${{ github.server_url}}/${{ github.repository }}|${{ github.repository }}>",
+                "short": true
+              },
+              {
+                "title": "Branch",
+                "value": "<${{ github.server_url}}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.head_ref || github.ref_name }}>",
+                "short": true
+              },
+              {
+                "title": "Triggered by",
+                "value": "${{ github.triggering_actor }}",
+                "short": true
+              },
+              {
+                "title": "Workflow run",
+                "value": "<${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}|${{ github.run_id }}#${{ github.run_attempt }}>",
+                "short": true
+              }
+            ]
+          }
+        ]
+      }
+
+runs:
+  using: "node20"
+  main: action.mjs

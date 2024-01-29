@@ -1,0 +1,41 @@
+name: "upload-cloud-assembly"
+description: |
+  description: "Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline"
+  local: true
+inputs:
+  aws-s3-bucket-name:
+    description: "The name of the S3 bucket to upload the Cloud Assembly to"
+    required: true
+  cdk-app-dir:
+    description: |
+      Path to the directory that contains the CDK application.
+
+      Defaults to the GitHub workspace directory.
+
+outputs:
+  cloud-assembly-metadata-file:
+    description: "The path to a file describing the S3 bucket and S3 key of the uploaded Cloud Assembly"
+    value: ${{ steps.upload.outputs.cloud-assembly-metadata-file }}
+runs:
+  using: "composite"
+  steps:
+    - name: create and upload cloud assembly
+      id: upload
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
+        INPUT_CDK_APP_DIR: ${{ inputs.cdk-app-dir }}
+      run: |
+        cdk_assembly_dir="${INPUT_CDK_ASSEMBLY_DIR:-$GITHUB_WORKSPACE}"
+        cd "$cdk_assembly_dir"
+        tmp_dir="/tmp/${GITHUB_ACTION:-$(date -u +%s)}"
+        mkdir -p "$tmp_dir"
+        cloud_assembly_archive="$tmp_dir/cloud-assembly.zip"
+        if [ ! -f "cdk.json" ]; then
+          echo "No cdk.json file found in '$input_cdk_assembly_path'. You may need to set the 'cdk-app-dir' input."
+          exit 1
+        fi
+
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
+          --cloud-assembly-archive "$cloud_assembly_archive"

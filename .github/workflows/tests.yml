@@ -1,0 +1,450 @@
+name: tests
+
+on:
+  workflow_call:
+
+jobs:
+  test-actions:
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: read
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      ######################################################
+      #
+      # test: parse-config
+      #
+      ######################################################
+      - name: arrange-parse-config
+        id: arrange-parse-config
+        run: |
+          cat <<EOF > .cicd.json
+          {
+            "version": "0.1",
+            "accountId": "000000000000",
+            "roleName": "actions-lib-main",
+            "limitedRoleName": "actions-lib-limited",
+            "ecrRepository": "actions-lib-artifacts",
+            "artifactBucket": "actions-lib-artifacts",
+            "devPipelines": ["actions-lib-apps-dev", "actions-lib-core-dev"],
+            "prodPipelines": ["actions-lib-apps-prod", "actions-lib-core-prod"]
+          }
+          EOF
+      - uses: ./parse-config
+        name: act-parse-config
+        id: act-parse-config
+      - uses: ./parse-config
+        name: act-parse-config-should-succeed
+        id: act-parse-config-should-succeed
+        with:
+          config: |
+            {
+              "version": "0.1",
+              "accountId": "000000000000",
+              "roleName": "actions-lib-main",
+              "ecrRepository": "actions-lib-artifacts",
+              "artifactBucket": "actions-lib-artifacts"
+            }
+      - name: assert-parse-config-should-succeed
+        id: assert-parse-config-should-succeed
+        env:
+          ASSERT_GOT_AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
+          ASSERT_GOT_PROD_PIPELINES: ${{ steps.act-parse-config.outputs.prodPipelines }}
+          ASSERT_GOT_ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_GOT_ECR_REPOSITORY: ${{ steps.act-parse-config.outputs.ecrRepository }}
+        run: |
+          test "${ASSERT_GOT_AWS_ACCOUNT_ID}" != ""
+          test "${ASSERT_GOT_PROD_PIPELINES}" != ""
+          test "${ASSERT_GOT_ARTIFACT_BUCKET}" != ""
+          test "${ASSERT_GOT_ECR_REPOSITORY}" != ""
+      - uses: ./parse-config
+        name: act-parse-config-should-fail
+        id: act-parse-config-should-fail
+        continue-on-error: true
+        with:
+          config: |
+            {
+              "version": "0.1",
+              "roleName": "actions-lib-main",
+              "ecrRepository": "actions-lib-artifacts",
+              "artifactBucket": "actions-lib-artifacts"
+            }
+      - name: assert-parse-config-should-fail
+        id: assert-parse-config-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-parse-config-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # configure localstack
+      #
+      ######################################################
+      - name: install-localstack
+        env:
+          AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
+        run: |
+          localstack_version="3.0.2"
+          python -m pip install "localstack==$localstack_version" &
+          docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
+          wait
+          localstack start -d
+          localstack wait -t 30
+          mkdir -p "$HOME/.aws"
+          cat <<EOF > "$HOME/.aws/config"
+          [default]
+          aws_access_key_id=$AWS_ACCOUNT_ID
+          aws_secret_access_key=$AWS_ACCOUNT_ID
+          endpoint_url=http://localhost:4566
+          region=eu-west-1
+          EOF
+          aws sts get-caller-identity
+      - name: create-aws-resources-for-localstack
+        env:
+          AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ROLE_NAME: ${{ steps.act-parse-config.outputs.roleName }}
+          LIMITED_ROLE_NAME: ${{ steps.act-parse-config.outputs.limitedRoleName }}
+        run: |
+          aws s3 mb "s3://$ARTIFACT_BUCKET"
+          # NOTE: Not supported on free plan
+          # aws ecr create-repository --repository-name "actions-lib-artifacts"
+          aws iam create-open-id-connect-provider \
+            --url "https://token.actions.githubusercontent.com" \
+            --client-id-list "sts.amazonaws.com" \
+            --thumbprint-list "0000000000000000000000000000000000000000"
+          cat <<EOF > assume-role-policy-document.json
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Principal": {
+                  "AWS": "arn:aws:iam::$AWS_ACCOUNT_ID:root"
+                },
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }
+          EOF
+          aws iam create-role \
+            --role-name "$ROLE_NAME" \
+            --assume-role-policy-document "file://assume-role-policy-document.json"
+          aws iam create-role \
+            --role-name "$LIMITED_ROLE_NAME" \
+            --assume-role-policy-document "file://assume-role-policy-document.json"
+      ######################################################
+      #
+      # test: configure-aws-credentials
+      #
+      ######################################################
+      - uses: ./configure-aws-credentials
+        name: act-configure-aws-credentials
+        id: act-configure-aws-credentials
+        with:
+          aws-account-id: ${{ steps.act-parse-config.outputs.accountId }}
+          aws-iam-role-name: ${{ steps.act-parse-config.outputs.roleName }}
+          # NOTE: Unsupported API call in localstack
+          # authenticate-to-ecr: true
+      - name: assert-configure-aws-credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.act-configure-aws-credentials.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.act-configure-aws-credentials.outputs.aws-session-token }}
+          ASSERT_EXPECTED: arn:aws:sts::${{ steps.act-parse-config.outputs.accountId }}:assumed-role/${{ steps.act-parse-config.outputs.roleName }}/
+        run: |
+          got="$(aws sts get-caller-identity \
+            --query "Arn" \
+            --output text
+          )"
+          echo "$got" | grep -q "^$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: configure-npm
+      #
+      ######################################################
+      - uses: ./configure-npm
+        name: act-configure-npm
+        id: act-configure-npm
+      - name: assert-configure-npm
+        id: assert-configure-npm
+        env:
+          ASSERT_GOT: ${{ env.NPM_CONFIG_USERCONFIG }}
+        run: |
+          if [ "$ASSERT_GOT" = "" ]; then
+            echo "The environment variable 'NPM_CONFIG_USERCONFIG' does not point to an NPM configuration file"
+            exit 1
+          elif [ ! -f "$ASSERT_GOT" ]; then
+            echo "NPM configuration file '$ASSERT_GOT' does not exist"
+            exit 1
+          fi
+      ######################################################
+      #
+      # test: slack-notify
+      #
+      ######################################################
+      - name: arrange-slack-notify
+        id: arrange-slack-notify
+        run: |
+          echo 'payload={"hello":"world"}' >> "$GITHUB_OUTPUT"
+      - uses: ./slack-notify
+        name: act-slack-notify
+        id: act-slack-notify
+        with:
+          dry-run: "true"
+          channel: "#my-channel"
+          bot-token: "example"
+          payload: ${{ steps.arrange-slack-notify.outputs.payload }}
+      - name: assert-slack-notify
+        id: assert-slack-notify
+        env:
+          ASSSERT_GOT: "${{ steps.act-slack-notify.outputs.payload }}"
+          ASSERT_EXPECTED_PAYLOAD_KEY: "channel"
+        run: |
+          echo "$ASSERT_GOT" | jq --exit-status --arg key "$ASSERT_EXPECTED_PAYLOAD_KEY" 'has($key)'
+      ######################################################
+      #
+      # test: check-runtime-dependencies
+      #
+      ######################################################
+      - uses: ./check-runtime-dependencies
+        name: act-check-runtime-dependencies-should-fail
+        id: act-check-runtime-dependencies-should-fail
+        continue-on-error: true
+        with:
+          dependencies: "non-existing-dependency"
+      - uses: ./check-runtime-dependencies
+        name: act-check-runtime-dependencies-should-succeed
+        id: act-check-runtime-dependencies-should-succeed
+        with:
+          dependencies: "aws curl localstack"
+      - name: assert-check-runtime-dependencies-should-fail
+        id: assert-check-runtime-dependencies-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-check-runtime-dependencies-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: generate-tag
+      #
+      ######################################################
+      - uses: ./generate-tag
+        name: act-generate-tag-has-prefix
+        id: act-generate-tag-has-prefix
+        with:
+          add-automatic-prefix: "false"
+          tag-prefix: "my-app"
+      - name: assert-generate-tag-has-prefix
+        id: assert-generate-tag-has-prefix
+        env:
+          ASSERT_EXPECTED: "my-app-"
+          ASSERT_GOT: ${{ steps.act-generate-tag-has-prefix.outputs.tag }}
+        run: echo "$ASSERT_GOT" | grep "^$ASSERT_EXPECTED"
+      - uses: ./generate-tag
+        name: act-generate-tag-has-non-default-branch-prefix
+        id: act-generate-tag-has-non-default-branch-prefix
+        with:
+          add-automatic-prefix: "true"
+          tag-prefix: "my-app"
+      - name: assert-generate-tag-has-non-default-branch-prefix
+        id: assert-generate-tag-has-non-default-branch-prefix
+        env:
+          ASSERT_EXPECTED: "nd-my-app-"
+          ASSERT_GOT: ${{ steps.act-generate-tag-has-non-default-branch-prefix.outputs.tag }}
+        run: echo "$ASSERT_GOT" | grep "^$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: upload-s3-artifact
+      #
+      ######################################################
+      - name: arrange-upload-s3-artifact-file
+        id: arrange-upload-s3-artifact-file
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+        run: |
+          aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
+          tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+          mkdir -p "$tmp_dir"
+          file="$tmp_dir/file"
+          echo test > "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "file-checksum=$(sha256sum "$file" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: ./upload-s3-artifact
+        name: act-upload-s3-artifact-file
+        id: act-upload-s3-artifact-file
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          target-path: ${{ steps.arrange-upload-s3-artifact-file.outputs.file }}
+      - name: assert-upload-s3-artifact-file
+        id: assert-upload-s3-artifact-file
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED: ${{ steps.arrange-upload-s3-artifact-file.outputs.file-checksum }}
+        run: aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
+      - name: arrange-upload-s3-artifact-directory
+        id: arrange-upload-s3-artifact-directory
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+        run: |
+          aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
+          tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+          mkdir -p "$tmp_dir"
+          touch "$tmp_dir/file"
+          echo "directory=$tmp_dir" >> "$GITHUB_OUTPUT"
+      - uses: ./upload-s3-artifact
+        name: act-upload-s3-artifact-directory
+        id: act-upload-s3-artifact-directory
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          aws-s3-key: "directory.zip"
+          target-path: ${{ steps.arrange-upload-s3-artifact-directory.outputs.directory }}
+      - name: assert-upload-s3-artifact-directory
+        id: assert-upload-s3-artifact-directory
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED: "directory.zip"
+        run: aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: trigger-deployment-pipeline
+      #
+      ######################################################
+      - name: arrange-trigger-deployment-pipeline-cdk-source
+        id: arrange-trigger-deployment-pipeline-cdk-source
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+        run: |
+          aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
+          tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+          mkdir -p "$tmp_dir"
+          file="$tmp_dir/file"
+          echo test > "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - uses: ./trigger-deployment-pipeline
+        name: act-trigger-deployment-pipeline-cdk-source
+        id: act-trigger-deployment-pipeline-cdk-source
+        with:
+          pipelines: "pipeline-1 pipeline-2"
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          cdk-source-metadata-file: ${{ steps.arrange-trigger-deployment-pipeline-cdk-source.outputs.file }}
+      - name: assert-trigger-deployment-pipeline-cdk-source
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED_NUM_CDK_SOURCE_FILES: 2
+          ASSERT_EXPECTED_NUM_TRIGGER_FILES: 2
+        run: |
+          got_num_cdk_source_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '/cdk-source.json')].[Key]" \
+            --output text \
+            | wc -l
+          )"
+          got_num_trigger_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '/trigger')].[Key]" \
+            --output text \
+            | wc -l
+          )"
+          test "$got_num_cdk_source_files" -eq "$ASSERT_EXPECTED_NUM_CDK_SOURCE_FILES"
+          test "$got_num_trigger_files" -eq "$ASSERT_EXPECTED_NUM_TRIGGER_FILES"
+      - name: arrange-trigger-deployment-pipeline-cloud-assembly
+        id: arrange-trigger-deployment-pipeline-cloud-assembly
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+        run: |
+          aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
+          tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+          mkdir -p "$tmp_dir"
+          file="$tmp_dir/file"
+          echo test > "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - uses: ./trigger-deployment-pipeline
+        name: act-trigger-deployment-pipeline-cloud-assembly
+        id: act-trigger-deployment-pipeline-cloud-assembly
+        with:
+          pipelines: "pipeline-1 pipeline-2"
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          trigger-type: cloud-assembly
+          cloud-assembly-metadata-file: ${{ steps.arrange-trigger-deployment-pipeline-cloud-assembly.outputs.file }}
+      - name: assert-trigger-deployment-pipeline-cloud-assembly
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED_NUM_CLOUD_ASSEMBLY_FILES: 2
+          ASSERT_EXPECTED_NUM_TRIGGER_FILES: 2
+        run: |
+          got_num_cdk_source_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '/cloud-assembly.json')].[Key]" \
+            --output text \
+            | wc -l
+          )"
+          got_num_trigger_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '/trigger')].[Key]" \
+            --output text \
+            | wc -l
+          )"
+          test "$got_num_cdk_source_files" -eq "$ASSERT_EXPECTED_NUM_CLOUD_ASSEMBLY_FILES"
+          test "$got_num_trigger_files" -eq "$ASSERT_EXPECTED_NUM_TRIGGER_FILES"
+      - name: arrange-trigger-deployment-pipeline-artifact
+        id: arrange-trigger-deployment-pipeline-artifact
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+        run: |
+          aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
+          aws ssm get-parameters-by-path --path "/" --recursive --query "Parameters[*].[Name]" --output text \
+            | xargs -I "{}" aws ssm delete-parameter --name "{}"
+      - uses: ./trigger-deployment-pipeline
+        name: act-trigger-deployment-pipeline-artifact
+        id: act-trigger-deployment-pipeline-artifact
+        with:
+          pipelines: "pipeline-1 pipeline-2"
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          trigger-type: artifact
+          artifact-parameters: "ecrTag=example ecrTag2=example"
+      - name: assert-trigger-deployment-pipeline-artifact
+        id: assert-trigger-deployment-pipeline-artifact
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED_NUM_ARTIFACT_PARAMETERS: 2
+          ASSERT_EXPECTED_NUM_TRIGGER_FILES: 2
+        run: |
+          got_num_artifact_parameters="$(aws ssm describe-parameters \
+            --query "Parameters[?starts_with(Name, '/liflig-cdk/')].[Name]" \
+            --output text \
+            | wc -l
+          )"
+          got_num_trigger_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '/trigger')].[Key]" \
+            --output text \
+            | wc -l
+          )"
+          test "$got_num_artifact_parameters" -eq "$ASSERT_EXPECTED_NUM_ARTIFACT_PARAMETERS"
+          test "$got_num_trigger_files" -eq "$ASSERT_EXPECTED_NUM_TRIGGER_FILES"
+      - name: arrange-trigger-deployment-pipeline-cdk-source-should-fail
+        id: arrange-trigger-deployment-pipeline-cdk-source-should-fail
+        run: |
+          tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+          mkdir -p "$tmp_dir"
+          file="$tmp_dir/file"
+          echo test > "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - uses: ./trigger-deployment-pipeline
+        name: act-trigger-deployment-pipeline-cdk-source-should-fail
+        id: act-trigger-deployment-pipeline-cdk-source-should-fail
+        continue-on-error: true
+        with:
+          pipelines: "pipeline-1 pipeline-2"
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          cdk-source-metadata-file: ${{ steps.arrange-trigger-deployment-pipeline-cdk-source-should-fail.outputs.file }}
+          github-token: "invalid"
+      - name: assert-trigger-deployment-pipeline-cdk-source-should-fail
+        id: assert-trigger-deployment-pipeline-cdk-source-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-trigger-deployment-pipeline-cdk-source-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"

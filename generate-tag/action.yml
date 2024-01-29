@@ -1,0 +1,61 @@
+name: "generate-tag"
+description: |
+  description: "Generate unique tags for artifacts"
+  local: true
+inputs:
+  tag-type:
+    required: true
+    default: "hyphenated-alphanumeric-tag"
+    description: |
+      The type of tag to generate.
+
+      Tag types supported:
+        - 'punctuated-timestamp-tag' (e.g., '20231130.145802')
+        - 'hyphenated-alphanumeric-tag' (e.g., '20231130-145834z-1658821493-abcd1234-main')
+  tag-prefix:
+    description: "An optional prefix to add to the generated tag."
+  max-length:
+    default: "256"
+    description: "The max length of the generated tag"
+  add-automatic-prefix:
+    default: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    description: |
+      A boolean that describes whether to add an additional prefix to a tag or not.
+
+      This allows you to more easily create cleanup policies (e.g., ECR Lifecycle Policies)
+      that target artifacts that originate from non-default branches.
+
+      NOTE: This only affects a tag of type 'hyphenated-alphanumeric-tag'.
+
+      Default: An additional prefix is added to a tag generated from non-default branches.
+outputs:
+  tag:
+    description: "The generated tag"
+    value: ${{ steps.generate.outputs.tag }}
+runs:
+  using: "composite"
+  steps:
+    - name: generate tag
+      id: generate
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_TAG_TYPE: ${{ inputs.tag-type }}
+        INPUT_TAG_PREFIX: ${{inputs.tag-prefix }}
+        INPUT_MAX_LENGTH: ${{ inputs.max-length }}
+        INPUT_ADD_AUTOMATIC_PREFIX: ${{ inputs.add-automatic-prefix }}
+      run: |
+        if [ "$INPUT_TAG_TYPE" = "hyphenated-alphanumeric-tag" ] && [ "$INPUT_ADD_AUTOMATIC_PREFIX" = "true" ]; then
+          # NOTE: We want to keep this as short as possible. Short for "non-default".
+          non_default_branch_tag_prefix="nd"
+          if [ "$INPUT_TAG_PREFIX" = "$non_default_branch_tag_prefix" ] || [ "$INPUT_TAG_PREFIX" = "$non_default_branch_tag_prefix-" ]; then
+            echo "The prefix '$INPUT_TAG_PREFIX' contains a reserved word '$non_default_branch_tag_prefix'" >&2
+            exit 1
+          fi
+          prefix="$non_default_branch_tag_prefix-$INPUT_TAG_PREFIX"
+        else
+          prefix="$INPUT_TAG_PREFIX"
+        fi
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --tag-type "$INPUT_TAG_TYPE" \
+          --tag-prefix "$prefix" \
+          --max-length "$INPUT_MAX_LENGTH"

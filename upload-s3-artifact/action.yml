@@ -1,0 +1,38 @@
+name: "upload-s3-artifact"
+description: |
+  description: "Upload a file or directory to S3"
+  local: true
+inputs:
+  aws-s3-bucket-name:
+    description: "The name of the S3 bucket to upload the artifact to"
+    required: true
+  aws-s3-key:
+    description: |
+      The S3 key to use when uploading the artifact to S3.
+
+      Default: the filename is the SHA-256 checksum of the file to upload.
+  target-path:
+    description: |
+      Path to the file or directory to upload.
+
+      If the path is a directory, the directory will
+      be zipped before uploading it to S3.
+outputs:
+  aws-s3-key:
+    description: "The S3 key of the uploaded artifact"
+    value: ${{ steps.upload.outputs.aws-s3-key }}
+runs:
+  using: "composite"
+  steps:
+    - name: upload artifact to s3
+      id: upload
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
+        INPUT_AWS_S3_KEY: ${{ inputs.aws-s3-key }}
+        INPUT_TARGET_PATH: ${{ inputs.target-path }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
+          --aws-s3-key "$INPUT_AWS_S3_KEY" \
+          --target-path "$INPUT_TARGET_PATH"

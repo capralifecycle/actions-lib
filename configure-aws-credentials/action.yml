@@ -1,0 +1,64 @@
+name: "Configure AWS credentials"
+description: |
+  description: "Configure temporary AWS credentials using the GitHub Actions OpenID Connect Provider"
+  local: false
+inputs:
+  aws-account-id:
+    description: "The ID of the AWS account to assume a role in"
+  aws-iam-role-name:
+    description: "The name of the AWS IAM role to assume"
+  aws-iam-role-session-name:
+    default: "gha-${{ github.run_id }}-${{ github.sha }}"
+    description: "Optional name of the IAM role session"
+  aws-region:
+    default: "eu-west-1"
+    description: "The AWS region to use"
+  authenticate-to-ecr:
+    default: "false"
+    description: "Whether to authenticate Docker to ECR in the current AWS account and region"
+  add-credentials-to-environment:
+    description: "Whether to add the AWS credentials to the environment"
+    default: "false"
+outputs:
+  aws-access-key-id:
+    description: "The AWS access key id"
+    value: ${{ steps.credentials.outputs.aws-access-key-id }}
+  aws-secret-access-key:
+    description: "The AWS secret access key"
+    value: ${{ steps.credentials.outputs.aws-secret-access-key }}
+  aws-session-token:
+    description: "The AWS session token"
+    value: ${{ steps.credentials.outputs.aws-session-token }}
+runs:
+  using: "composite"
+  steps:
+    - name: configure aws credentials
+      # NOTE: This is a bit stricter than the default shell options used by GitHub Actions (`bash --noprofile --norc -e -o pipefail {0}`)
+      shell: bash --noprofile --norc -euo pipefail {0}
+      id: credentials
+      env:
+        INPUT_AWS_ACCOUNT_ID: ${{ inputs.aws-account-id }}
+        INPUT_AWS_IAM_ROLE_NAME: ${{ inputs.aws-iam-role-name }}
+        INPUT_AWS_IAM_ROLE_SESSION_NAME: ${{ inputs.aws-iam-role-session-name }}
+        INPUT_AWS_REGION: ${{ inputs.aws-region }}
+        INPUT_ADD_CREDENTIALS_TO_ENVIRONMENT: ${{ inputs.add-credentials-to-environment }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --aws-account-id "$INPUT_AWS_ACCOUNT_ID" \
+          --aws-iam-role-session-name "$INPUT_AWS_IAM_ROLE_SESSION_NAME" \
+          --aws-iam-role-name "$INPUT_AWS_IAM_ROLE_NAME" \
+          --aws-region "$INPUT_AWS_REGION" \
+          --add-credentials-to-environment "$INPUT_ADD_CREDENTIALS_TO_ENVIRONMENT"
+    - name: authenticate to ecr
+      if: ${{ inputs.authenticate-to-ecr == 'true' }}
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_AWS_ACCOUNT_ID: ${{ inputs.aws-account-id }}
+        INPUT_AWS_REGION: ${{ inputs.aws-region }}
+        AWS_ACCESS_KEY_ID: ${{ steps.credentials.outputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ steps.credentials.outputs.aws-secret-access-key }}
+        AWS_SESSION_TOKEN: ${{ steps.credentials.outputs.aws-session-token }}
+      run: |
+        login_password="$(aws ecr get-login-password --region "$INPUT_AWS_REGION")"
+        echo "::add-mask::$login_password"
+        echo "$login_password" | docker login --username AWS --password-stdin "$INPUT_AWS_ACCOUNT_ID.dkr.ecr.$INPUT_AWS_REGION.amazonaws.com"

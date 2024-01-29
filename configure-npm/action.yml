@@ -1,0 +1,30 @@
+name: "Configure NPM"
+description: |
+  description: "Creates an NPM configuration for authenticating to GitHub Packages and optionally the npmjs.com registry"
+  local: false
+inputs:
+  configure-npmjs-credentials:
+    description: "Configures NPM to authenticate to the npmjs.com registry using the environment variable NPM_TOKEN"
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - name: configure npm
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_CONFIGURE_NPMJS_CREDENTIALS: ${{ inputs.configure-npmjs-credentials }}
+      run: |
+        # NOTE: $RUNNER_TEMP isn't mounted in Docker container actions.
+        # See https://github.com/actions/runner/issues/1984 for more details.
+        tmp_dir="${RUNNER_TEMP:-/tmp}/${GITHUB_ACTION:-$(date -u +%s)}"
+        mkdir -p "$tmp_dir"
+        file="$tmp_dir/.npmrc"
+        cat <<EOF > "$file"
+        @capralifecycle:registry=https://npm.pkg.github.com
+        //npm.pkg.github.com/:_authToken=\${GITHUB_TOKEN}
+        registry=https://registry.npmjs.com
+        EOF
+        if [ "$INPUT_CONFIGURE_NPMJS_CREDENTIALS" = "true" ]; then
+          echo "//registry.npmjs.com/:authToken=\${NPM_TOKEN}" >> "$file"
+        fi
+        echo "NPM_CONFIG_USERCONFIG=$file" >> "$GITHUB_ENV"

@@ -1,0 +1,26 @@
+name: "parse-config"
+description: |
+  description: "Parse and validate a JSON configuration and expose the configuration as separate outputs"
+  local: true
+inputs:
+  config-file:
+    description: |
+      The path to a JSON configuration file.
+
+      NOTE: Mutually exclusive with parameter 'config'.
+    default: ".cicd.json"
+  config:
+    description: |
+      Configuration passed in as a serialized JSON object.
+
+      NOTE: Mutually exclusive with parameter 'config-file'.
+
+      Example:
+        config: |
+          {
+            "foo": "bar",
+            "bar": "baz"
+          }
+runs:
+  using: "node20"
+  main: action.mjs

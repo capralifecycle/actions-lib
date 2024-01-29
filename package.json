@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "prepare": "husky install",
+    "semantic-release": "semantic-release"
+  },
+  "overrides": {
+    "semantic-release": {
+      "@semantic-release/npm": "10.0.6"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "18.6.0",
+    "@commitlint/config-conventional": "18.6.0",
+    "husky": "8.0.3",
+    "semantic-release": "22.0.12"
+  }
+}

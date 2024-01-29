@@ -1,0 +1,65 @@
+name: "trigger-deployment-pipeline"
+description: |
+  description: "Trigger Liflig CDK Pipelines in AWS"
+  local: true
+inputs:
+  github-token:
+    description: "A token used to fetch timing information for the current GitHub Actions workflow run"
+    default: "${{ github.token }}"
+  pipelines:
+    description: "A space-separated list of pipelines to trigger"
+    required: true
+  aws-s3-bucket-name:
+    description: "The name of the S3 bucket to upload files to"
+    required: true
+  trigger-type:
+    default: "cdk-source"
+    description: |
+      The type of trigger. This typically depends on the type of repository you're in.
+      A CDK repository will usually be of type 'cdk-source', while an application repository
+      is of type 'artifact'.
+
+      Allowed values: 'artifact' | 'cdk'-source | 'cloud-assembly'
+  cloud-assembly-metadata-file:
+    description: |
+      The path to the Cloud Assembly metadata file.
+
+      Use this when 'trigger-type' is 'cloud-assembly'.
+    default: ""
+  cdk-source-metadata-file:
+    description: |
+      The path to the CDK source metadata file.
+
+      Use this when 'trigger-type' is 'cdk-source'.
+  artifact-parameters:
+    description: |
+      A space-separated list of values to store in Parameter Store in the format `<parameter-name>=<parameter-value>`.
+
+      This can be used to store references to uploaded artifacts in Parameter Store.
+
+      Example for setting a single artifact parameter:
+        artifact-parameters: "devWebappS3Key=my-s3-artifact.zip"
+      Example for setting multiple artifacts parameters:
+        artifact-parameters: "devWebappS3Key=my-s3-artifact.zip devBackendEcrTag=my-tag"
+runs:
+  using: "composite"
+  steps:
+    - name: trigger deployment
+      id: trigger
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_PIPELINES: ${{ inputs.pipelines }}
+        INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
+        INPUT_TRIGGER_TYPE: ${{ inputs.trigger-type }}
+        INPUT_CDK_SOURCE_METADATA_FILE: ${{ inputs.cdk-source-metadata-file }}
+        INPUT_CLOUD_ASSEMBLY_METADATA_FILE: ${{ inputs.cloud-assembly-metadata-file }}
+        INPUT_ARTIFACT_PARAMETERS: ${{ inputs.artifact-parameters }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        bash $GITHUB_ACTION_PATH/action.sh \
+          --pipelines "$INPUT_PIPELINES" \
+          --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
+          --trigger-type "$INPUT_TRIGGER_TYPE" \
+          --cdk-source-metadata-file "$INPUT_CDK_SOURCE_METADATA_FILE" \
+          --cloud-assembly-metadata-file "$INPUT_CLOUD_ASSEMBLY_METADATA_FILE" \
+          --artifact-parameters "$INPUT_ARTIFACT_PARAMETERS"

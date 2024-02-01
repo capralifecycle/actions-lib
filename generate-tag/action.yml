@@ -18,7 +18,7 @@ inputs:
     default: "256"
     description: "The max length of the generated tag"
   add-automatic-prefix:
-    default: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    default: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
     description: |
       A boolean that describes whether to add an additional prefix to a tag or not.
 

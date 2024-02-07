@@ -26,16 +26,7 @@ runs:
         INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
         INPUT_CDK_APP_DIR: ${{ inputs.cdk-app-dir }}
       run: |
-        cdk_assembly_dir="${INPUT_CDK_ASSEMBLY_DIR:-$GITHUB_WORKSPACE}"
-        cd "$cdk_assembly_dir"
-        tmp_dir="/tmp/${GITHUB_ACTION:-$(date -u +%s)}"
-        mkdir -p "$tmp_dir"
-        cloud_assembly_archive="$tmp_dir/cloud-assembly.zip"
-        if [ ! -f "cdk.json" ]; then
-          echo "No cdk.json file found in '$input_cdk_assembly_path'. You may need to set the 'cdk-app-dir' input."
-          exit 1
-        fi
-
+        cdk_app_dir="${INPUT_CDK_APP_DIR:-$GITHUB_WORKSPACE}"
         bash "$GITHUB_ACTION_PATH/action.sh" \
           --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
-          --cloud-assembly-archive "$cloud_assembly_archive"
+          --cdk-app-dir "$cdk_app_dir"

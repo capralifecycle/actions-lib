@@ -12,12 +12,12 @@ inputs:
 
       Default: the filename is the SHA-256 checksum of the file to upload.
   aws-s3-key-prefix:
+    default: ""
     description: |
-      The prefix for the S3 key to use when uploading the artifact to S3.
-      If the prefix is set to 'lambda/my-application/', the full S3 key will be
-      'lambda/my-application/<aws-s3-key>.zip'.
+      An optional S3 key prefix to use when uploading the artifact to S3.
 
-      Default: no prefix is used.
+      A use-case for this input is adding an additional custom prefix
+      to the default S3 key (a SHA-256 checksum of the artifact).
   target-path:
     description: |
       Path to the file or directory to upload.

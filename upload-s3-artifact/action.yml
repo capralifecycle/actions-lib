@@ -11,6 +11,13 @@ inputs:
       The S3 key to use when uploading the artifact to S3.
 
       Default: the filename is the SHA-256 checksum of the file to upload.
+  aws-s3-key-prefix:
+    default: ""
+    description: |
+      An optional S3 key prefix to use when uploading the artifact to S3.
+
+      A use-case for this input is adding an additional custom prefix
+      to the default S3 key (a SHA-256 checksum of the artifact).
   target-path:
     description: |
       Path to the file or directory to upload.
@@ -30,9 +37,11 @@ runs:
       env:
         INPUT_AWS_S3_BUCKET_NAME: ${{ inputs.aws-s3-bucket-name }}
         INPUT_AWS_S3_KEY: ${{ inputs.aws-s3-key }}
+        INPUT_AWS_S3_KEY_PREFIX: ${{ inputs.aws-s3-key-prefix }}
         INPUT_TARGET_PATH: ${{ inputs.target-path }}
       run: |
         bash "$GITHUB_ACTION_PATH/action.sh" \
           --aws-s3-bucket-name "$INPUT_AWS_S3_BUCKET_NAME" \
           --aws-s3-key "$INPUT_AWS_S3_KEY" \
+          --aws-s3-key-prefix "$INPUT_AWS_S3_KEY_PREFIX" \
           --target-path "$INPUT_TARGET_PATH"

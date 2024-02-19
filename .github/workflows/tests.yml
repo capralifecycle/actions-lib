@@ -307,6 +307,20 @@ jobs:
           ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
           ASSERT_EXPECTED: "directory.zip"
         run: aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
+      - uses: ./upload-s3-artifact
+        name: act-upload-s3-artifact-directory-with-custom-prefix
+        id: act-upload-s3-artifact-directory-with-custom-prefix
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          aws-s3-key: "directory.zip"
+          aws-s3-key-prefix: "prefix/test/"
+          target-path: ${{ steps.arrange-upload-s3-artifact-directory.outputs.directory }}
+      - name: assert-upload-s3-artifact-directory-with-custom-prefix
+        id: assert-upload-s3-artifact-directory-with-custom-prefix
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_EXPECTED: "prefix/test/directory.zip"
+        run: aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
       ######################################################
       #
       # test: trigger-deployment-pipeline

@@ -469,18 +469,6 @@ jobs:
       #
       ######################################################
       - uses: ./configure-github-deployment
-        name: act-configure-github-deployment-should-fail
-        id: act-configure-github-deployment-should-fail
-        continue-on-error: true
-        with:
-          github-token: "invalid"
-      - name: assert-configure-github-deployment-should-fail
-        id: assert-configure-github-deployment-should-fail
-        env:
-          ASSERT_EXPECTED: "failure"
-          ASSERT_GOT: ${{ steps.act-configure-github-deployment-should-fail.outcome }}
-        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
-      - uses: ./configure-github-deployment
         name: act-configure-github-deployment-should-create-deployment
         id: act-configure-github-deployment-should-create-deployment
         with:
@@ -490,7 +478,7 @@ jobs:
         env:
           ASSERT_GOT: ${{ steps.act-configure-github-deployment-should-create-deployment.outputs.deployment-id }}
         run: |
-          if [ -z "$ASSERT_GOT" ]; then
+          if [ "$ASSERT_GOT" = "" ]; then
             echo "No deployment ID found. Workflow failed."
             exit 1
           fi

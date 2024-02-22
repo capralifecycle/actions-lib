@@ -13,6 +13,11 @@ concurrency: ci-${{ github.ref }}-${{ github.workflow }}
 jobs:
   test:
     uses: ./.github/workflows/tests.yml
+    permissions:
+      actions: read
+      id-token: write
+      contents: read
+      deployments: write
   verify:
     runs-on: ubuntu-22.04
     steps:

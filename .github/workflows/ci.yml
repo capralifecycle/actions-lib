@@ -17,6 +17,7 @@ jobs:
       actions: read
       id-token: write
       contents: read
+      deployments: write
   verify:
     runs-on: ubuntu-22.04
     steps:

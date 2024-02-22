@@ -1,0 +1,104 @@
+name: "configure-github-deployment"
+description: |
+  description: "Create or update a GitHub deployment"
+  local: false
+inputs:
+  github-token:
+    description: "A token used to interact with the GitHub Deployments API"
+    default: "${{ github.token }}"
+  deployment-id:
+    description: |
+      Optional ID of an existing to deployment to update
+
+      If this isn't supplied, a new deployment will be created.
+    default: ""
+  deployment-state:
+    default: "${{ job.status == 'cancelled' && 'inactive' || job.status }}"
+    description: |
+      The state to update the deployment to.
+
+      One of 'error', 'failure', 'inactive', 'in_progress', 'queued', 'pending' or 'success'.
+
+      Defaults to using the status of the currently running job as the deployment state.
+  environment:
+    description: "The name of the environment to associate with the deployment"
+    default: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'production' || 'development' }}
+outputs:
+  deployment-id:
+    description: "The ID of the Github Deployment created"
+    value: ${{ steps.create-deployment.outputs.deployment-id }}
+  deployment-state:
+    description: "The state of the Github Deployment after update"
+    value: ${{ steps.set-deployment-state.outputs.deployment-state }}
+runs:
+  using: "composite"
+  steps:
+    - name: create deployment
+      id: create-deployment
+      shell: bash --noprofile --norc -euo pipefail {0}
+      if: ${{ inputs.deployment-id == '' }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        DEPLOYMENT_TASK: "deploy:${{ github.repository }}"
+        ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        payload="$(cat <<EOF
+        {
+          "ref": "$GITHUB_SHA",
+          "auto_merge": false,
+          "required_contexts": [],
+          "environment": "$ENVIRONMENT",
+          "task": "$DEPLOYMENT_TASK"
+        }
+        EOF
+        )"
+        result="$(curl -L \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -X "POST" \
+          --fail \
+          --silent \
+          --show-error \
+          --data "$payload" \
+          "https://api.github.com/repos/$GITHUB_REPOSITORY/deployments"
+        )"
+        deployment_id="$(echo "$result" | jq --exit-status --raw-output ".id")"
+        echo "deployment-id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+    - name: set deployment state
+      id: set-deployment-state
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        DEPLOYMENT_ID: ${{ inputs.deployment-id || steps.create-deployment.outputs.deployment-id }}
+        DEPLOYMENT_STATE: ${{ inputs.deployment-state }}
+        LOG_URL: "https://github.com/${{ github.repository }}/commit/${{ github.sha }}/checks"
+      run: |
+        deployment_state=""
+        case "$DEPLOYMENT_STATE" in
+          error|failure|inactive|in_progress|queued|pending|success)
+            deployment_state="$DEPLOYMENT_STATE" ;;
+          *) echo "Invalid deployment state '$DEPLOYMENT_STATE'" >&2 && exit 1 ;;
+        esac
+        payload="$(cat <<EOF
+        {
+          "state": "$deployment_state",
+          "log_url": "$LOG_URL",
+          "auto_inactive": true
+        }
+        EOF
+        )"
+        result="$(curl -L \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -X "POST" \
+          --fail \
+          --silent \
+          --show-error \
+          --data "$payload" \
+          "https://api.github.com/repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses"
+        )"
+        deployment_state="$(echo "$result" | jq --exit-status --raw-output ".state")"
+        echo "deployment-state=$deployment_state" >> "$GITHUB_OUTPUT"

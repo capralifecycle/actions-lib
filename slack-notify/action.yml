@@ -60,7 +60,9 @@ inputs:
           }
         ]
       }
-
+outputs:
+  payload:
+    description: "The JSON payload that was sent to Slack"
 runs:
   using: "node20"
   main: action.mjs

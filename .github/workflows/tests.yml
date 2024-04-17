@@ -10,6 +10,7 @@ jobs:
       actions: read
       id-token: write
       contents: read
+      deployments: write
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       ######################################################
@@ -462,3 +463,35 @@ jobs:
           ASSERT_EXPECTED: "failure"
           ASSERT_GOT: ${{ steps.act-trigger-deployment-pipeline-cdk-source-should-fail.outcome }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: configure-github-deployment
+      #
+      ######################################################
+      - uses: ./configure-github-deployment
+        name: act-configure-github-deployment-should-create-deployment
+        id: act-configure-github-deployment-should-create-deployment
+        with:
+          environment: "ci-tests"
+      - name: assert-configure-github-deployment-should-create-deployment
+        id: assert-configure-github-deployment-should-create-deployment
+        env:
+          ASSERT_GOT: ${{ steps.act-configure-github-deployment-should-create-deployment.outputs.deployment-id }}
+        run: |
+          if [ "$ASSERT_GOT" = "" ]; then
+            echo "No deployment ID found. Workflow failed."
+            exit 1
+          fi
+      - uses: ./configure-github-deployment
+        name: act-configure-github-deployment-update-state
+        id: act-configure-github-deployment-update-state
+        with:
+          deployment-id: ${{ steps.act-configure-github-deployment-should-create-deployment.outputs.deployment-id }}
+          deployment-state: "inactive"
+      - name: assert-configure-github-deployment-update-state
+        id: assert-configure-github-deployment-update-state
+        env:
+          ASSERT_EXPECTED: "inactive"
+          ASSERT_GOT: ${{ steps.act-configure-github-deployment-update-state.outputs.deployment-state }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+

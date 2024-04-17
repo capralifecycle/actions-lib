@@ -4,3 +4,4 @@ node_modules/
 .husky/pre-commit
 
 .vscode/settings.json
+.idea

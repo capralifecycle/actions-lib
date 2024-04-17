@@ -21,6 +21,25 @@ inputs:
             "foo": "bar",
             "bar": "baz"
           }
+outputs:
+  version:
+    description: "The version of the configuration schema, parsed from the configuration"
+  accountId:
+    description: "The AWS account ID, parsed from the configuration"
+  roleName:
+    description: "The name of the AWS IAM Role to be used by GHA for trunk branch, parsed from the configuration"
+  limitedRoleName:
+    description: "The name of the AWS IAM Role to be used by GHA for non-trunk branches, parsed from the configuration"
+  artifactBucket:
+    description: "The name of the bucket where build artifacts are stored, parsed from the configuration"
+  ecrRepository:
+    description: "The name of the ECR repository where build artifacts are stored, parsed from the configuration"
+  pipelines:
+    description: "A list of pipeline names, parsed from the configuration"
+  devPipelines:
+    description: "A list of development pipeline names, parsed from the configuration"
+  prodPipelines:
+    description: "A list of production pipeline names, parsed from the configuration"
 runs:
   using: "node20"
   main: action.mjs

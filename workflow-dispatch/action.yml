@@ -1,0 +1,41 @@
+name: "workflow-dispatch"
+description: |
+  description: "Starts a GitHub Actions workflow through workflow_dispatch"
+  local: true
+inputs:
+  github-token:
+    description: "The token used for authenticating when sending a workflow_dispatch POST request to the target repository."
+    required: true
+  owner:
+    description: "The owner of the target repository to which the workflow_dispatch POST request will be sent."
+    required: true
+  repo:
+    description: "The name of the target repository to which the workflow_dispatch POST request will be sent."
+    required: true
+  ref:
+    description: "The tag or branch in the target repository containing the workflow file."
+    required: true
+  workflow-id:
+    description: "The id or name of the workflow to trigger in the target repository."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: trigger deployment
+      id: trigger
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_OWNER: ${{ inputs.owner }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_WORKFLOW_ID: ${{ inputs.workflow-id }}
+      run: |
+        bash $GITHUB_ACTION_PATH/action.sh \
+          --owner "$INPUT_OWNER" \
+          --repo "$INPUT_REPO" \
+          --ref "$INPUT_REF" \
+          --workflow-id "$INPUT_WORKFLOW_ID" \
+          --source-type "CI" \
+          --source-repo "$GITHUB_REPOSITORY"
+          

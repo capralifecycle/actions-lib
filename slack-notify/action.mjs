@@ -38,7 +38,10 @@ if (dryRun) {
     }
   })
   if (!response.ok) {
-    const { ok, error } = await response.json()
-    throw new Error(`Request failed with status ${response.status} ${response.statusText}. Error: ${error}`)
+    throw new Error(`Request failed with status ${response.status} ${response.statusText}`)
+  }
+  const { ok, error } = await response.json()
+  if (!ok) {
+    throw new Error(`Request failed with error ${error}`)
   }
 }

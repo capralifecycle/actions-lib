@@ -28,8 +28,8 @@ const body = JSON.stringify({
 if (dryRun) {
   appendFileSync(process.env.GITHUB_OUTPUT, `payload=${body}\n`)
 } else {
-  const useIncommingWebhook = incomingWebhookUrl !== undefined
-  const endpointUrl = useIncommingWebhook ?  incomingWebhookUrl : "https://slack.com/api/chat.postMessage"
+  const useIncomingWebhook = incomingWebhookUrl !== undefined
+  const endpointUrl = useIncomingWebhook ?  incomingWebhookUrl : "https://slack.com/api/chat.postMessage"
   const response = await fetch(endpointUrl, {
     method: "POST",
     body,
@@ -37,7 +37,7 @@ if (dryRun) {
       /* 
       * Only set the Authorization header if we're not using webhook and bot token is defined
       * Since there's a check above, there will under no circumstances be a situation where 
-      * useIncommingWebhook is true and the botToken-variable is defined
+      * useIncomingWebhook is true and the botToken-variable is defined
       */
       ...(botToken && { "Authorization": `Bearer ${botToken}` }),
       "Content-Type": "application/json; charset=utf-8"
@@ -47,13 +47,13 @@ if (dryRun) {
     throw new Error(`Request failed with status ${response.status} ${response.statusText}`)
   }
   /*
-  * Slack is using a different reponse scheme for incomming webhooks. Thereby, 
+  * Slack is using a different response scheme for incoming webhooks. Thereby,
   * we only do fetch.then(response => resonse.json()) if messages was posted to the
   * chat.postMessage-api. 
   * 
-  * Error handling for incomming webhooks: https://api.slack.com/messaging/webhooks#handling_errors
+  * Error handling for incoming webhooks: https://api.slack.com/messaging/webhooks#handling_errors
   */
-  if (!useIncommingWebhook) {
+  if (!useIncomingWebhook) {
     const { ok, error } = await response.json()
     if (!ok) {
       throw new Error(`Request failed with error ${error}`)

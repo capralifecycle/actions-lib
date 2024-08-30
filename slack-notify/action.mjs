@@ -28,7 +28,7 @@ const body = JSON.stringify({
 if (dryRun) {
   appendFileSync(process.env.GITHUB_OUTPUT, `payload=${body}\n`)
 } else {
-  const useIncomingWebhook = incomingWebhookUrl !== undefined
+  const useIncomingWebhook = Boolean(incomingWebhookUrl) // null, undefined or empty string means false.
   const endpointUrl = useIncomingWebhook ?  incomingWebhookUrl : "https://slack.com/api/chat.postMessage"
   const response = await fetch(endpointUrl, {
     method: "POST",

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import { appendFileSync } from "node:fs"
 let payload
 try {

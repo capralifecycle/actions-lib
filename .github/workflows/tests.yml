@@ -206,7 +206,7 @@ jobs:
       - name: assert-slack-notify
         id: assert-slack-notify
         env:
-          ASSSERT_GOT: "${{ steps.act-slack-notify.outputs.payload }}"
+          ASSERT_GOT: "${{ steps.act-slack-notify.outputs.payload }}"
           ASSERT_EXPECTED_PAYLOAD_KEY: "channel"
         run: |
           echo "$ASSERT_GOT" | jq --exit-status --arg key "$ASSERT_EXPECTED_PAYLOAD_KEY" 'has($key)'

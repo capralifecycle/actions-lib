@@ -83,6 +83,11 @@ jobs:
       # configure localstack
       #
       ######################################################
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
       - name: install-localstack
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}

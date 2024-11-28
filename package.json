@@ -1,6 +1,7 @@
 {
+  "type": "module",
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "husky",
     "semantic-release": "semantic-release"
   },
   "overrides": {

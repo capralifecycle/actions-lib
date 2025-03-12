@@ -54,7 +54,7 @@ jobs:
           fi
       - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
       - name: verify docs are up-to-date
         run: |

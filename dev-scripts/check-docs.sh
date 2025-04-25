@@ -7,9 +7,7 @@ script_dir="$(dirname "${BASH_SOURCE[0]}")"
 cd "$script_dir/.." || exit
 
 # will be relative to project root
-VENV=".venv/bin"
-
-diff <(${VENV}/python3 generate-docs.py README.md) README.md || {
+diff <(python generate-docs.py README.md) README.md || {
   cat <<EOF
 The documentation is not up-to-date. Run the following command to update:
 printf "%s\n" "\$(python generate-docs.py README.md)" > README.md

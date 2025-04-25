@@ -1,0 +1,18 @@
+# .lefthook-local.yaml
+---
+pre-commit:
+  parallel: true
+  jobs:
+    - name: md-lint
+      glob: "*.md"
+      run: markdownlint {staged_files} --disable MD013
+    - name: json-lint
+      glob: "*.json"
+      run: jsonlint {staged_files} --no-duplicate-keys --compact --quiet
+    - name: gitleaks
+      run: gitleaks git --pre-commit --redact --staged --verbose
+    - name: actionlint
+      glob: ".github/workflows/*.yml"
+      run: actionlint {staged_files}
+    - name: check-docs
+      run: ./dev-scripts/check-docs.sh

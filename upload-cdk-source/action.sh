@@ -29,7 +29,7 @@ parse_args() {
 
 main() {
   parse_args "$@"
-  grep_pattern="$(echo "$INPUT_INCLUDE_FILES" | sed 's/ /\\|/g')"
+  grep_pattern="${INPUT_INCLUDE_FILES// /\\|}"
   find . \
     | grep "^\./\($grep_pattern\)$" \
     | zip -r -@ "$INPUT_CDK_SOURCE_ARCHIVE"

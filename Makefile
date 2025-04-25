@@ -1,19 +1,23 @@
 VENV = .venv/bin
 SCRIPTS = ./dev-scripts
+
 .PHONY: all
-all: check
+all: build lint
 
-.PHONY: check
-check:
+.PHONY: build
+build:
 	npm install
-	$(SCRIPTS)/check-docs.sh
-	$(SCRIPTS)/lint-modified-shell-scripts.sh
 
-.PHONY: venv
-venv:
-	python -m venv .venv; \
-	$(VENV)/pip install -r requirements.txt
+.PHONY: lint
+lint:
+	$(SCRIPTS)/check-docs.sh
+	$(SCRIPTS)/lint-shell-scripts.sh
 
 .PHONY: update-docs
 update-docs:
 	$(SCRIPTS)/update-docs.sh
+
+.PHONY: setup-venv
+setup-venv:
+	python -m venv .venv; \
+	$(VENV)/pip install -r requirements.txt

@@ -241,7 +241,7 @@ jobs:
         name: act-check-runtime-dependencies-should-succeed
         id: act-check-runtime-dependencies-should-succeed
         with:
-          dependencies: "aws curl localstack"
+          dependencies: "aws curl"
       - name: assert-check-runtime-dependencies-should-fail
         id: assert-check-runtime-dependencies-should-fail
         env:

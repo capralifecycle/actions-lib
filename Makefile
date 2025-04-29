@@ -25,7 +25,7 @@ check-git-leaks:
 
 .PHONY: lint-workflows
 lint-workflows:
-	actionlint --oneline .github/workflows/*
+	actionlint --oneline
 
 .PHONY: lint-commit-msg
 lint-commit-msg:

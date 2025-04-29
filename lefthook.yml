@@ -3,21 +3,19 @@
 pre-commit:
   parallel: true
   jobs:
-    - name: markdownlint
-      glob: "*.md"
-      # MD013 specifies the maximum line length, irrelevant for documentation.
-      run: markdownlint {staged_files} --disable MD013
+    - name: lint docs
+      run: make lint-docs
 
-    - name: json-lint
-      glob: "*.json"
-      run: jsonlint {staged_files} --no-duplicate-keys --compact --quiet
+    - name: lint shell
+      run: make lint-shell
 
-    - name: gitleaks
-      run: gitleaks git --pre-commit --redact --staged --verbose
+    - name: lint secrets
+      run: make lint-secrets
 
-    - name: actionlint
-      glob: ".github/workflows/*.yml"
-      run: actionlint {staged_files}
+    - name: lint workflows
+      run: make lint-workflows
 
-    - name: lint
-      run: make lint
+commit-msg:
+  scripts:
+    "commitlint.sh":
+      runner: bash

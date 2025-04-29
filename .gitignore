@@ -1,8 +1,5 @@
 node_modules/
 
-# hooks currently done on a per-developer basis
-.husky/pre-commit
-
 .vscode/settings.json
 .idea
 .venv

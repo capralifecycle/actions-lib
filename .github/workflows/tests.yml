@@ -13,6 +13,27 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      ######################################################
+      #
+      # install dependencies
+      #
+      ######################################################
+      - name: "mise - install tools"
+        uses: jdx/mise-action@v2
+        with:
+          version: 2024.12.14
+          install: true # run mise install
+          cache: true
+
+      - name: python - install python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: python - setup venv and install deps
+        run: uv sync --locked --all-extras --dev
+
       ######################################################
       #
       # test: parse-config
@@ -84,19 +105,15 @@ jobs:
       #
       ######################################################
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          cache: "pip"
       - name: install-localstack
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
           localstack_version="3.0.2"
-          python -m pip install "localstack==$localstack_version" &
           docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
           wait
-          localstack start -d
-          localstack wait -t 30
+          uvx localstack start -d
+          uvx localstack wait -t 30
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"
           [default]

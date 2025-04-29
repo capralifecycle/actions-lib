@@ -9,4 +9,4 @@ find . \
     -name .git -prune -o \
     -name '*.sh' \
     -type f \
-    -exec shellcheck {} +
+    -exec shellcheck --format gcc {} +

@@ -20,8 +20,8 @@ lint-shell:
 	$(SCRIPTS)/lint-shell-scripts.sh
 
 .PHONY: lint-secrets
-check-git-leaks:
-	run: gitleaks git --pre-commit --redact --staged --no-banner
+lint-secrets:
+	gitleaks git --pre-commit --redact --staged --no-banner
 
 .PHONY: lint-workflows
 lint-workflows:

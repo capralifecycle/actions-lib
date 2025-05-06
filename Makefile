@@ -39,3 +39,12 @@ update-docs:
 install-tools:
 	mise install
 	brew install shellcheck
+
+.PHONY: clean
+clean:
+	rm -rf dist
+
+.PHONY: clean-all
+clean-all:
+	rm -rf node_modules
+	rm -rf .venv

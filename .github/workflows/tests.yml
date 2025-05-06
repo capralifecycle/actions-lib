@@ -20,7 +20,7 @@ jobs:
       #
       ######################################################
       - name: "mise - install tools"
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@7a111ead46986ccad89a74ad013ba2a7c08c9e67 # v2.2.1
         with:
           version: 2024.12.14
           install: true # run mise install

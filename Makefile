@@ -1,19 +1,50 @@
-VENV = .venv/bin
 SCRIPTS = ./dev-scripts
+
 .PHONY: all
-all: check
+all: build lint
 
-.PHONY: check
-check:
+.PHONY: build
+build:
 	npm install
-	$(SCRIPTS)/check-docs.sh
-	$(SCRIPTS)/lint-modified-shell-scripts.sh
+	uv sync
 
-.PHONY: venv
-venv:
-	python -m venv .venv; \
-	$(VENV)/pip install -r requirements.txt
+.PHONY: lint
+lint: lint-docs lint-shell lint-secrets lint-workflows
+
+.PHONY: lint-docs
+lint-docs:
+	$(SCRIPTS)/lint-docs.sh
+
+.PHONY: lint-shell
+lint-shell:
+	$(SCRIPTS)/lint-shell-scripts.sh
+
+.PHONY: lint-secrets
+lint-secrets:
+	gitleaks git --pre-commit --redact --staged --no-banner
+
+.PHONY: lint-workflows
+lint-workflows:
+	actionlint --oneline
+
+.PHONY: lint-commit-msg
+lint-commit-msg:
+	$(SCRIPTS)/lint-commit-message.sh
 
 .PHONY: update-docs
 update-docs:
 	$(SCRIPTS)/update-docs.sh
+
+.PHONY: install-tools
+install-tools:
+	mise install
+	brew install shellcheck
+
+.PHONY: clean
+clean:
+	rm -rf dist
+
+.PHONY: clean-all
+clean-all:
+	rm -rf node_modules
+	rm -rf .venv

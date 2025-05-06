@@ -1,0 +1,21 @@
+# .lefthook-local.yaml
+---
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint docs
+      run: make lint-docs
+
+    - name: lint shell
+      run: make lint-shell
+
+    - name: lint secrets
+      run: make lint-secrets
+
+    - name: lint workflows
+      run: make lint-workflows
+
+commit-msg:
+  scripts:
+    "commitlint.sh":
+      runner: bash

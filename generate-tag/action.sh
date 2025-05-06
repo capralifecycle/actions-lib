@@ -37,7 +37,8 @@ main() {
     if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
       short_sha="$(echo "$GITHUB_SHA" | cut -c -8)"
       build_id="$GITHUB_RUN_ID"
-      sanitized_branch_name="$(echo "${GITHUB_REF#refs/heads/}" | sed "s/[^a-zA-Z0-9_-]//g")"
+      sanitized_branch_name="${GITHUB_REF#refs/heads/}"
+      sanitized_branch_name="${sanitized_branch_name//[^a-zA-Z0-9_-]/}"
     else
       short_sha="$(git show -s --format="%H" | cut -c -8)"
       build_id="local"

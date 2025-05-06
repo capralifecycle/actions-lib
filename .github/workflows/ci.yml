@@ -22,49 +22,34 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: install shellcheck
-        run: |
-          target_shellcheck_version="0.9.0"
-          shellcheck_sha="157fd8b2c18a257f3876e23015580ea63d27b12c4f13f87d625a180e8ca042e7501271d15edeb36e7b5780da73815b45386a33e063ab1c891d838f35c778a8ac"
-          filename="shellcheck-v$target_shellcheck_version"
-          file_path="/tmp/$filename.tar.xz"
-          mkdir -p "/opt/$filename"
-          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v$target_shellcheck_version/$filename.linux.x86_64.tar.xz" -o "$file_path"
-          echo "${shellcheck_sha}  $file_path" | sha512sum -c -
-          tar -xJf "$file_path" -C "/opt/$filename" --strip-components=1 --no-same-owner
-          export "PATH=/opt/$filename:$PATH"
-          current_shellcheck_version="$(shellcheck --version | sed -n "s/^version: \(.*\)$/\1/p")"
-          if [ "$current_shellcheck_version" != "$target_shellcheck_version" ]; then
-            exit 1
-          fi
-      - name: run shellcheck
-        run: |
-          has_failed="false"
-          while read -r -d '' file; do
-            if ! current_result="$(shellcheck --severity=warning --color=never "$file")"; then
-              has_failed="true"
-              echo "--- $file ---"
-              echo "$current_result"
-              echo ""
-              echo ""
-            fi
-          done < <(find "." ! -path "*/.git/*" -wholename "*.sh" -print0)
-          if [ "$has_failed" != "false" ]; then
-            exit 1
-          fi
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+
+      - name: "mise - install tools"
+        uses: jdx/mise-action@7a111ead46986ccad89a74ad013ba2a7c08c9e67 # v2.2.1
         with:
-          python-version: '3.13'
-          cache: 'pip'
-      - name: verify docs are up-to-date
-        run: |
-          python -m pip install "pyyaml==6.0.1"
-          diff <(python generate-docs.py README.md) README.md || { cat <<EOF
-          The documentation is not up-to-date. Run the following command to update:
-          printf "%s\n" "\$(python generate-docs.py README.md)" > README.md
-          EOF
-          exit 1
-          }
+          version: 2024.12.14
+          install: true # run mise install
+          cache: true
+
+      - name: install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: python - install python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: python - setup venv and install deps
+        run: uv sync --locked --all-extras --dev
+
+      - name: lint workflows
+        run: make lint-workflows
+
+      - name: lint shellscripts
+        run: make lint-shell
+
+      - name: lint docs
+        run: make lint-docs
+
   conditional-release:
     needs:
       - verify

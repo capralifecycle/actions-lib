@@ -1,1 +1,4 @@
-nodejs 22
+nodejs     22
+uv         0.6.17
+gitleaks   8.24.3
+actionlint 1.7.7

@@ -13,6 +13,27 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      ######################################################
+      #
+      # install dependencies
+      #
+      ######################################################
+      - name: "mise - install tools"
+        uses: jdx/mise-action@7a111ead46986ccad89a74ad013ba2a7c08c9e67 # v2.2.1
+        with:
+          version: 2024.12.14
+          install: true # run mise install
+          cache: true
+
+      - name: python - install python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: python - setup venv and install deps
+        run: uv sync --locked --all-extras --dev
+
       ######################################################
       #
       # test: parse-config
@@ -84,20 +105,15 @@ jobs:
       #
       ######################################################
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.13'
-          cache: 'pip'
       - name: install-localstack
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
           localstack_version="3.0.2"
-          python -m pip install "localstack==$localstack_version" &
           docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
           wait
-          localstack start -d
-          localstack wait -t 30
+          uvx localstack start -d
+          uvx localstack wait -t 30
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"
           [default]
@@ -225,7 +241,7 @@ jobs:
         name: act-check-runtime-dependencies-should-succeed
         id: act-check-runtime-dependencies-should-succeed
         with:
-          dependencies: "aws curl localstack"
+          dependencies: "aws curl"
       - name: assert-check-runtime-dependencies-should-fail
         id: assert-check-runtime-dependencies-should-fail
         env:
@@ -499,4 +515,3 @@ jobs:
           ASSERT_EXPECTED: "inactive"
           ASSERT_GOT: ${{ steps.act-configure-github-deployment-update-state.outputs.deployment-state }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
-

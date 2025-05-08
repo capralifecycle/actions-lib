@@ -17,7 +17,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "localstack", specifier = "==3.8.1" },
+    { name = "localstack", specifier = "==4.3.0" },
     { name = "pyyaml", specifier = "==6.0.2" },
 ]
 
@@ -203,17 +203,17 @@ wheels = [
 
 [[package]]
 name = "localstack"
-version = "3.8.1"
+version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "localstack-core" },
     { name = "localstack-ext" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/10/21a313338d3c22a9b7e4931652c98fcdee9e63a5d75aa83bdd9164c95789/localstack-3.8.1.tar.gz", hash = "sha256:7d21361c5a8cabb0f4fe9fa09aa29570c7e9696acd5edca5b70ccf9c4281d405", size = 5747, upload-time = "2024-10-08T11:23:33.655Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/3a/1aefc78cfa26c39a404470ada314fd6e91f179e5a093d789e38e64fbc0c1/localstack-4.3.0.tar.gz", hash = "sha256:5d9e3c0bbd749253a2c7ea3fb120dc953f233778b090492676efaf5c0f7839da", size = 5810, upload-time = "2025-03-27T09:15:19.975Z" }
 
 [[package]]
 name = "localstack-core"
-version = "3.8.1"
+version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -232,14 +232,14 @@ dependencies = [
     { name = "semver" },
     { name = "tailer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/b2/d4aeff26bc9413c356ed98b3bfd4e8902eb711badf37f09c41ce1443640e/localstack_core-3.8.1.tar.gz", hash = "sha256:94e1712e62e1511b092d9462b3dd66b55bf925ed163aa3e27c1ee7511284f036", size = 9852649, upload-time = "2024-10-08T11:17:33.542Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d2/a3/c278d96ab7493947495fc33f6c555c2a158742553d0b6280d941490a8303/localstack_core-4.3.0.tar.gz", hash = "sha256:002b9d41a966c74e9610f7aa365d9257502fe87fbe803b3c0994f4336b20c5a4", size = 4393197, upload-time = "2025-03-27T09:10:11.065Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/ec/fd27d886300ea5f1292acc743ccbb49bbbf3ef908fbd1d579169fa3865fd/localstack_core-3.8.1-py3-none-any.whl", hash = "sha256:e69dc219d743be98a112b8e10b00a1d3107903699a41a2badeee006759157a1b", size = 2366706, upload-time = "2024-10-08T11:17:29.17Z" },
+    { url = "https://files.pythonhosted.org/packages/77/c8/e30a17bb199185852ee74f36e261397894c04cd8a30e6c8984639b765b99/localstack_core-4.3.0-py3-none-any.whl", hash = "sha256:d07c7816edf3f51f40cb1161777f7d743e81b602e20a1bd0d2ba5f38016c852e", size = 2494208, upload-time = "2025-03-27T09:10:07.984Z" },
 ]
 
 [[package]]
 name = "localstack-ext"
-version = "3.8.1"
+version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -249,7 +249,6 @@ dependencies = [
     { name = "localstack-core" },
     { name = "packaging" },
     { name = "plux" },
-    { name = "pyaes" },
     { name = "pyotp" },
     { name = "python-dateutil" },
     { name = "python-jose", extra = ["cryptography"] },
@@ -257,7 +256,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "windows-curses", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/1e/8e5404825f32b4ce40faf7160defac104eafb669c3b0db6fa25cfec0df8d/localstack_ext-3.8.1.tar.gz", hash = "sha256:16395fadce8b02f0185692d8353cb7e53a8c95a7b8520ba7a2ec181255991d8c", size = 7758577, upload-time = "2024-10-08T11:23:37.546Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/bc/01ebe4741ad792f85df0ec230a2fb7bbba5e700fdccc6c928edbb64842cd/localstack_ext-4.3.0.tar.gz", hash = "sha256:625286748b5e7888eaa8ef4be0101f104bab39aeefad86809ab787f2021170f5", size = 6601582, upload-time = "2025-03-27T09:15:22.566Z" }
 
 [[package]]
 name = "markdown-it-py"
@@ -311,12 +310,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/93/52/3e39d26feae7df0aa0fd510b14012c3678b36ed068f7d78b8d8784d61f0e/psutil-5.9.8-cp37-abi3-win_amd64.whl", hash = "sha256:8db4c1b57507eef143a15a6884ca10f7c73876cdf5d51e713151c1236a0e68cf", size = 255090, upload-time = "2024-01-19T20:47:56.019Z" },
     { url = "https://files.pythonhosted.org/packages/05/33/2d74d588408caedd065c2497bdb5ef83ce6082db01289a1e1147f6639802/psutil-5.9.8-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:d16bbddf0693323b8c6123dd804100241da461e41d6e332fb0ba6058f630f8c8", size = 249898, upload-time = "2024-01-19T20:47:59.238Z" },
 ]
-
-[[package]]
-name = "pyaes"
-version = "1.6.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/44/66/2c17bae31c906613795711fc78045c285048168919ace2220daa372c7d72/pyaes-1.6.1.tar.gz", hash = "sha256:02c1b1405c38d3c370b085fb952dd8bea3fadcee6411ad99f312cc129c536d8f", size = 28536, upload-time = "2017-09-20T21:17:54.23Z" }
 
 [[package]]
 name = "pyasn1"

@@ -1,0 +1,22 @@
+name: "test-coverage-maven"
+description: |
+  description: "Generate and report test coverage"
+  local: true
+inputs:
+  coverage-report-path:
+    required: false
+    default: "target/site/jacoco/jacoco.csv"
+    description: The path of the jacoco coverage file in csv format
+runs:
+  using: "composite"
+  steps:
+    - name: Create jacoco report
+      run: mvn clean test jacoco:report
+      shell: bash --noprofile --norc -euo pipefail {0}
+    - name: Extract coverage percentage from Jacoco report
+      id: extract-coverage
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        COVERAGE_REPORT_PATH: ${{ inputs.coverage-report-path }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/action.sh" --coverage-report-path "$COVERAGE_REPORT_PATH"

@@ -3,6 +3,6 @@
     "github>capraconsulting/renovate-config:default",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "automerge": true,
+  "automerge": false,
   "automergeType": "branch"
 }

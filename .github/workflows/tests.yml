@@ -112,8 +112,8 @@ jobs:
           localstack_version="3.0.2"
           docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
           wait
-          uvx localstack start -d
-          uvx localstack wait -t 30
+          uv run localstack start -d
+          uv run localstack wait -t 30
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"
           [default]

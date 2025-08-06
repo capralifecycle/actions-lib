@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -17,7 +17,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "localstack", specifier = "==4.6.0" },
+    { name = "localstack", specifier = "==4.7.0" },
     { name = "pyyaml", specifier = "==6.0.2" },
 ]
 
@@ -190,18 +190,27 @@ wheels = [
 ]
 
 [[package]]
+name = "jsonpickle"
+version = "4.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/a6/d07afcfdef402900229bcca795f80506b207af13a838d4d99ad45abf530c/jsonpickle-4.1.1.tar.gz", hash = "sha256:f86e18f13e2b96c1c1eede0b7b90095bbb61d99fedc14813c44dc2f361dbbae1", size = 316885, upload-time = "2025-06-02T20:36:11.57Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/73/04df8a6fa66d43a9fd45c30f283cc4afff17da671886e451d52af60bdc7e/jsonpickle-4.1.1-py3-none-any.whl", hash = "sha256:bb141da6057898aa2438ff268362b126826c812a1721e31cf08a6e142910dc91", size = 47125, upload-time = "2025-06-02T20:36:08.647Z" },
+]
+
+[[package]]
 name = "localstack"
-version = "4.6.0"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "localstack-core" },
     { name = "localstack-ext" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/47/72/b1fa6c2928cb8fd38a0681920f32201ee88b0ee93625e03d35bcf07bb765/localstack-4.6.0.tar.gz", hash = "sha256:2b0ba609816241dba507d7d7b20ca44ee598b4c730f6c56bed3e6f5472dc6c7d", size = 5807, upload-time = "2025-07-03T06:23:12.321Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/42/61aa34f15be3439eccdc248112f99b207ae87d1f35e401e6de9fd0881e84/localstack-4.7.0.tar.gz", hash = "sha256:c798c31ca241873f6ea6b935c7d06a6f7f7b9fe306e9cd296e3c1ee4adacdb27", size = 5823, upload-time = "2025-07-31T07:14:52.966Z" }
 
 [[package]]
 name = "localstack-core"
-version = "4.6.0"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -211,6 +220,7 @@ dependencies = [
     { name = "dill" },
     { name = "dnslib" },
     { name = "dnspython" },
+    { name = "jsonpickle" },
     { name = "plux" },
     { name = "psutil" },
     { name = "python-dotenv" },
@@ -220,14 +230,14 @@ dependencies = [
     { name = "semver" },
     { name = "tailer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/af/bb6760edcbb1e1c3906c2aa961c6a744e9a9a4f11c2ac7d2ac0e5fabd08d/localstack_core-4.6.0.tar.gz", hash = "sha256:e324a8ece8acb1b15a8961ea1a103a50e24e61bbbd30e608b9f5a03ff3b0b0ad", size = 3496774, upload-time = "2025-07-03T06:17:46.767Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/f1/9dfc210884d1c5913d5e63491df96827176e0ea219649e516017eaef05d2/localstack_core-4.7.0.tar.gz", hash = "sha256:cd72f6779d4e76c2427c814a31e145f6d9e6dd3737a4d3e9283e6b690ea6b114", size = 3506655, upload-time = "2025-07-31T07:09:09.685Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/75/aec2b0f801bf18e3a457c6323e486add5dfdaf4aeb762045388517ccf0b0/localstack_core-4.6.0-py3-none-any.whl", hash = "sha256:98c1b8b6406f7b72a3906434dfb9fcf3644ff9191211a607073dd76f6f6e51a4", size = 2570160, upload-time = "2025-07-03T06:17:44.546Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/42/5a3659b6233a8ec3f3e1e5e63b37c67c9375a5ea9539903e79e83b57f699/localstack_core-4.7.0-py3-none-any.whl", hash = "sha256:6692d8fab21f105626e235e0bfec96df3b39b0f0e6156882ac7773a13404677b", size = 2580928, upload-time = "2025-07-31T07:09:07.851Z" },
 ]
 
 [[package]]
 name = "localstack-ext"
-version = "4.6.0"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -244,7 +254,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "windows-curses", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/4f/0f6424553530c1b3b88a9815d7f10a3025c14144f267e525c7156d4fa59f/localstack_ext-4.6.0.tar.gz", hash = "sha256:7b9fcd712877bd5678b394bb24e8ebdb1df9fb4c669177049c0d97e005c8615c", size = 7917549, upload-time = "2025-07-03T06:23:14.591Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/7a/80d865ef5377617b487dfd34645f3a127e3fdd9475372b8f8bcf406b7d76/localstack_ext-4.7.0.tar.gz", hash = "sha256:38b7826c0c9b3fa4a01dbd8335ff2b5d4af1b7cf663a241fa76c31761d80dc5e", size = 8095045, upload-time = "2025-07-31T07:14:55.466Z" }
 
 [[package]]
 name = "markdown-it-py"

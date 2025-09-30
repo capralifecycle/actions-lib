@@ -48,3 +48,7 @@ clean:
 clean-all:
 	rm -rf node_modules
 	rm -rf .venv
+
+.PHONY: upgrade-deps
+upgrade-deps:
+	npm run upgrade-deps

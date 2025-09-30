@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "semantic-release": "semantic-release",
-    "upgrade-deps": "ncu --upgrade --install=always"
+    "upgrade-deps": "ncu --upgrade --install=always --format group"
   },
   "overrides": {
     "semantic-release": {

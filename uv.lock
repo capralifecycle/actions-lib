@@ -17,7 +17,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "localstack", specifier = "==4.8.1" },
+    { name = "localstack", specifier = "==4.9.0" },
     { name = "pyyaml", specifier = "==6.0.3" },
 ]
 
@@ -272,17 +272,17 @@ wheels = [
 
 [[package]]
 name = "localstack"
-version = "4.8.1"
+version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "localstack-core" },
     { name = "localstack-ext" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/32/de715f0f55dd368e707136c36faba305f7b374b4bc4443cbda749b155cfa/localstack-4.8.1.tar.gz", hash = "sha256:754ebfcf0c55cbbceee057b68b8b45092876e69125e2ab5d26d934c10a36ff6a", size = 5898, upload-time = "2025-09-16T15:17:24.351Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/f9/a8ec712d4b1637ed59532902181b6da78a994f6a9461a30f27fc686403a8/localstack-4.9.0.tar.gz", hash = "sha256:90313fb4e7caaaba125d89d314c8c13384dbb7a021618ff13537cb24436de332", size = 5915, upload-time = "2025-10-02T07:38:35.086Z" }
 
 [[package]]
 name = "localstack-core"
-version = "4.8.1"
+version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -301,14 +301,14 @@ dependencies = [
     { name = "semver" },
     { name = "tailer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/0a/fef6905030f74dae6ad238e78c3e46fb2cc2ef68a10e70870d66055df436/localstack_core-4.8.1.tar.gz", hash = "sha256:7ade82edffa2632879d5ecf3ca857323f1254c9bce46de9f07bc3ce4d483acff", size = 3523568, upload-time = "2025-09-16T15:11:42.414Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/1b/e144df7f2a5f872a31420e7f376096b06f5294671f6dbade7552b97cc8b1/localstack_core-4.9.0.tar.gz", hash = "sha256:303d2d76461cdc434e67bfb0b01f1c1884ed2e4a9eb861abeb9660d65cbf0a41", size = 3557399, upload-time = "2025-10-02T07:32:40.05Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/7c/fb75830ca234a749fbbd8009883a3890275996e09401dae88447e10fd759/localstack_core-4.8.1-py3-none-any.whl", hash = "sha256:876b07988b120ad70eba9b676b8efea3b5f2705f0f8cf5d857c4898f91da8973", size = 2599042, upload-time = "2025-09-16T15:11:40.806Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/60/8c8953e71b1d34705e85ed1c61409ae6c2cf28b1f82db76d965f1e463607/localstack_core-4.9.0-py3-none-any.whl", hash = "sha256:0b033a7a3a35083d37c98f51ea56c2e7845430e5640eef6011cac957a0f9dfff", size = 2632121, upload-time = "2025-10-02T07:32:38.419Z" },
 ]
 
 [[package]]
 name = "localstack-ext"
-version = "4.8.1"
+version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -327,7 +327,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "windows-curses", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/db/66768c1b5dadd551c3cd89ba9d4c3be43e9370ef259fc8af5749c9138865/localstack_ext-4.8.1.tar.gz", hash = "sha256:eb3443b4b21c019b8b3331ea3cc62d7a05bba411889c60c4255faa7fd6e0068c", size = 8430280, upload-time = "2025-09-16T15:17:26.83Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/6e/4c757f098250ac2d96e3fb3dd5762b8c489953c9ce094ee9e7c20c263d99/localstack_ext-4.9.0.tar.gz", hash = "sha256:94fbafabe19b7ce9fb33d3b2a23eb1b1e587a96fe6e7f34ee8b1e7c0b17c3d5a", size = 8458777, upload-time = "2025-10-02T07:38:37.691Z" }
 
 [[package]]
 name = "localstack-py-avro-schema"

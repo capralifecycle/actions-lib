@@ -1,0 +1,7 @@
+[tools]
+gitleaks = "8.28.0"
+uv = "0.9.5"
+actionlint = "1.7.8"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node"]

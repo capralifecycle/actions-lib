@@ -26,12 +26,9 @@ jobs:
       - name: "mise - install tools"
         uses: jdx/mise-action@e3d7b8d67a7958d1207f6ed871e83b1ea780e7b0 # v3.3.1
         with:
-          version: 2025.8.7
+          version: 2025.10.18
           install: true # run mise install
           cache: true
-
-      - name: install shellcheck
-        run: sudo apt-get install -y shellcheck
 
       - name: python - install python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
@@ -64,7 +61,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version-file: ".node-version"
       - name: "install npm dependencies"
         run: npm ci
       - name: release

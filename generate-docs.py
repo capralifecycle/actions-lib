@@ -11,6 +11,8 @@ file_data = f.read()
 f.close()
 data = {}
 for file_path in glob.glob('**/action.yml', recursive=True):
+    if 'archive/' in file_path:
+        continue
     with open(file_path, 'r') as file:
         yaml_content = yaml.safe_load(file)
         parent_dir_name=os.path.basename(os.path.dirname(file_path))

@@ -19,5 +19,4 @@ Below is a summary of the actions in the library and a short description of what
 | [upload-cdk-source](upload-cdk-source/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | ✅ |
 | [upload-cloud-assembly](upload-cloud-assembly/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | ✅ |
 | [upload-s3-artifact](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | ✅ |
-| [workflow-dispatch](workflow-dispatch/action.yml) | Starts a GitHub Actions workflow through workflow_dispatch | ✅ |
 <!-- ACTION_TABLE_END -->

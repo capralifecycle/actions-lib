@@ -31,8 +31,8 @@ lint-workflows:
 lint-commit-msg:
 	$(SCRIPTS)/lint-commit-message.sh
 
-.PHONY: update-docs
-update-docs:
+.PHONY: docs
+docs:
 	$(SCRIPTS)/update-docs.sh
 
 .PHONY: install-tools

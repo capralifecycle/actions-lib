@@ -1,0 +1,20 @@
+      ######################################################
+      #
+      # test: configure-npm
+      #
+      ######################################################
+      - uses: ./configure-npm
+        name: act-configure-npm
+        id: act-configure-npm
+      - name: assert-configure-npm
+        id: assert-configure-npm
+        env:
+          ASSERT_GOT: ${{ env.NPM_CONFIG_USERCONFIG }}
+        run: |
+          if [ "$ASSERT_GOT" = "" ]; then
+            echo "The environment variable 'NPM_CONFIG_USERCONFIG' does not point to an NPM configuration file"
+            exit 1
+          elif [ ! -f "$ASSERT_GOT" ]; then
+            echo "NPM configuration file '$ASSERT_GOT' does not exist"
+            exit 1
+          fi

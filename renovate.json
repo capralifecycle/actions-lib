@@ -4,5 +4,6 @@
     "helpers:pinGitHubActionDigestsToSemver"
   ],
   "automerge": true,
-  "automergeType": "branch"
+  "automergeType": "branch",
+  "ignorePaths": ["**/archive/**"]
 }

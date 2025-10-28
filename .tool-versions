@@ -1,4 +1,4 @@
-nodejs     22.21.0
+node       22.21.0
 uv         0.9.5
 gitleaks   8.28.0
 actionlint 1.7.8

@@ -30,9 +30,6 @@ jobs:
           install: true # run mise install
           cache: true
 
-      - name: install shellcheck
-        run: sudo apt-get install -y shellcheck
-
       - name: python - install python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:

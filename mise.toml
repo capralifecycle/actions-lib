@@ -1,5 +1,5 @@
 [tools]
-gitleaks = "8.29.1"
+gitleaks = "8.30.0"
 uv = "0.9.13"
 actionlint = "1.7.9"
 shellcheck = "0.11.0"

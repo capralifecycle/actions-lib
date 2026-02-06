@@ -17,7 +17,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "localstack", specifier = "==4.13.0" },
+    { name = "localstack", specifier = "==4.13.1" },
     { name = "pyyaml", specifier = "==6.0.3" },
 ]
 
@@ -237,17 +237,17 @@ wheels = [
 
 [[package]]
 name = "localstack"
-version = "4.13.0"
+version = "4.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "localstack-core" },
     { name = "localstack-ext" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/65/b6e42e528b3ed6d1113bf629b1c46fcb9baf309b6d1c61a7727e34c1b9be/localstack-4.13.0.tar.gz", hash = "sha256:fddfd01ed64e6b3b69e4855bd8d61cfaf1ab58cca6bb47f27c3af042833c1899", size = 5953, upload-time = "2026-01-29T08:00:29.565Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/44/bd7aad22852d5139bcb79af7f8d2630c48d20216d9ced284430d037d7a7d/localstack-4.13.1.tar.gz", hash = "sha256:8627e9ad779654447287986c35ee79e6c8826748a1394541374de0df168509cf", size = 5955, upload-time = "2026-02-02T11:36:26.424Z" }
 
 [[package]]
 name = "localstack-core"
-version = "4.13.0"
+version = "4.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asn1crypto" },
@@ -264,14 +264,14 @@ dependencies = [
     { name = "rich" },
     { name = "semver" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/71/918885508d70ff7bddc288594ab1b24284788df031735846773e11ace46f/localstack_core-4.13.0.tar.gz", hash = "sha256:57581eddcfd84e2fde175abac88bd67c96ac554dce8e08e192ac4138cf64b772", size = 2209668, upload-time = "2026-01-29T07:55:46.718Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/ea/98036b2963668a76416dec6f8ef2e6f8ffd152ce8f06ab2950dedf1beee2/localstack_core-4.13.1.tar.gz", hash = "sha256:45b57e1c82f30f949e2f9a018e999b1c08525ce2655afcf4416850a2e1bd2324", size = 2215946, upload-time = "2026-02-02T11:32:50.311Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/09/f72b65e1031acfe03e694a933dd6ec6fb38101139147e48c7b7387e2fce3/localstack_core-4.13.0-py3-none-any.whl", hash = "sha256:799ace7f84b19c734f508171a272c2c18707bf793a720e2757180da5629b4c05", size = 2718353, upload-time = "2026-01-29T07:55:44.483Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/51/b243ba104c667fd403246030753352d024d1373e221143c3fc7189a919b1/localstack_core-4.13.1-py3-none-any.whl", hash = "sha256:dd90f950f6745275403c0b4e7e797cc9412f64ae75863d6a278bb1b3e6a71f11", size = 2722274, upload-time = "2026-02-02T11:32:48.278Z" },
 ]
 
 [[package]]
 name = "localstack-ext"
-version = "4.13.0"
+version = "4.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -288,7 +288,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "windows-curses", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/2a/457d80e4a1a94e2684414252760b19e6ea6250a153958a862ce74c8f51b1/localstack_ext-4.13.0.tar.gz", hash = "sha256:64b635693c7bb95957a19be1386ea05e62f8eaa1a391d8e03ba2058fb8d99056", size = 9064974, upload-time = "2026-01-29T08:00:31.944Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/c2/949a2e4306ade243d6fa63f55739798c0646c154a2790bbae4799773eb0c/localstack_ext-4.13.1.tar.gz", hash = "sha256:9a2e1e6dd66dcf4b8636f587aaacadda591d3fdf4dd4828bd63935ead59751b3", size = 9090505, upload-time = "2026-02-02T11:36:28.842Z" }
 
 [[package]]
 name = "markdown-it-py"

@@ -41,5 +41,5 @@ outputs:
   prodPipelines:
     description: "A list of production pipeline names, parsed from the configuration"
 runs:
-  using: "node20"
+  using: "node24"
   main: action.mjs

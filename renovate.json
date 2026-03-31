@@ -5,5 +5,11 @@
   ],
   "automerge": true,
   "automergeType": "branch",
-  "ignorePaths": ["**/archive/**"]
+  "ignorePaths": ["**/archive/**"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["localstack"],
+      "enabled": false
+    }
+  ]
 }

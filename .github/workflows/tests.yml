@@ -109,10 +109,10 @@ jobs:
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
-          localstack_version="3.0.2"
-          docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
+          localstack_version="4.13.1"
+          docker pull "localstack/localstack:$localstack_version" &
           wait
-          uv run DNS_ADDRESS=0 localstack start -d
+          uv run localstack start -d
           uv run localstack wait -t 30
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"

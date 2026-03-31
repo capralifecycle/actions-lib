@@ -113,7 +113,8 @@ jobs:
           docker pull "localstack/localstack:$localstack_version" &
           wait
           uv run localstack start -d
-          uv run localstack wait -t 60
+          uv run localstack wait -t 120
+          docker logs localstack-main
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"
           [default]

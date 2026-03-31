@@ -105,15 +105,33 @@ jobs:
       #
       ######################################################
 
-      - name: install-localstack
+      - name: setup-localstack
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
-          localstack_version="3.0.2"
-          docker pull "localstack/localstack:$localstack_version@sha256:73698e485240939490134aadd7e429ac87ff068cd5ad09f5de8ccb76727c13e1" &
-          wait
-          uv run localstack start -d
-          uv run localstack wait -t 30
+          docker run -d --name localstack-main \
+          -p 4566:4566 \
+          -p 4571:4571 \
+          -e SERVICES=sts,s3,iam,ssm \
+          -e DEBUG=1 \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          localstack/localstack:4.14.0
+
+          for i in {1..60}; do
+            if docker logs localstack-main 2>&1 | grep -q "Ready."; then
+              echo "LocalStack is ready"
+              break
+            fi
+            echo "⏳ Waiting ($i)..."
+            sleep 1
+          done
+
+          if ! docker logs localstack-main 2>&1 | grep -q "Ready."; then
+            echo "LocalStack failed to start"
+            docker logs localstack-main || true
+            exit 1
+          fi
+
           mkdir -p "$HOME/.aws"
           cat <<EOF > "$HOME/.aws/config"
           [default]

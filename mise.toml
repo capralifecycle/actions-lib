@@ -1,6 +1,6 @@
 [tools]
 gitleaks = "8.30.1"
-uv = "0.11.5"
+uv = "0.11.6"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
 

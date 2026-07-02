@@ -12,7 +12,7 @@
   "devDependencies": {
     "@commitlint/cli": "21.1.0",
     "@commitlint/config-conventional": "21.1.0",
-    "npm-check-updates": "22.2.8",
+    "npm-check-updates": "22.2.9",
     "semantic-release": "25.0.5"
   }
 }

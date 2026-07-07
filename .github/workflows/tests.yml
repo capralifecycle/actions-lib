@@ -513,3 +513,22 @@ jobs:
           ASSERT_EXPECTED: "inactive"
           ASSERT_GOT: ${{ steps.act-configure-github-deployment-update-state.outputs.deployment-state }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: aikido-scan
+      #
+      ######################################################
+      - uses: ./aikido-scan
+        name: act-aikido-scan-missing-required-input-should-fail
+        id: act-aikido-scan-missing-required-input-should-fail
+        continue-on-error: true
+        with:
+          apikey: ""
+          bot-token: "example"
+          channel: "#my-channel"
+      - name: assert-aikido-scan-missing-required-input-should-fail
+        id: assert-aikido-scan-missing-required-input-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-aikido-scan-missing-required-input-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"

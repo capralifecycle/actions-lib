@@ -9,6 +9,7 @@ Below is a summary of the actions in the library and a short description of what
 <!-- ACTION_TABLE_START -->
 | Action | Description | Local usage |
 | --- | --- | --- |
+| [aikido-scan](aikido-scan/action.yml) | Run an Aikido release scan and post a summary to Slack if issues are found | ✅ |
 | [check-runtime-dependencies](check-runtime-dependencies/action.yml) | Check if the runtime has the expected dependencies | ❌ |
 | [configure-aws-credentials](configure-aws-credentials/action.yml) | Configure temporary AWS credentials using the GitHub Actions OpenID Connect Provider | ❌ |
 | [configure-github-deployment](configure-github-deployment/action.yml) | Create or update a GitHub deployment | ❌ |

@@ -1,0 +1,98 @@
+name: "aikido-scan"
+description: |
+  description: "Run an Aikido release scan and post a summary to Slack if issues are found"
+  local: true
+inputs:
+  apikey:
+    description: "A GitHub Actions secret containing the Aikido API key used to authenticate with the Aikido CI API."
+  min-severity-level:
+    description: |
+      The minimum severity level of an issue that should cause the scan to fail.
+
+      Allowed values: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+    default: "HIGH"
+  fail-on-sast-scan:
+    description: "Whether the scan should fail if new SAST issues are found"
+    default: "true"
+  fail-on-iac-scan:
+    description: "Whether the scan should fail if new infrastructure-as-code issues are found"
+    default: "true"
+  fail-on-secrets-scan:
+    description: "Whether the scan should fail if exposed secrets are found"
+    default: "true"
+  fail-on-dependency-scan:
+    description: "Whether the scan should fail if new dependency vulnerabilities are found"
+    default: "true"
+  fail-on-malware-scan:
+    description: "Whether the scan should fail if malware is found"
+    default: "false"
+  no-fail:
+    description: |
+      Whether the action should avoid failing the job when the scan finds issues.
+
+      When set to 'true', the scan still runs and Slack is still notified if issues are
+      found, but the action itself exits successfully so CI can continue.
+    default: "false"
+  bot-token:
+    description: "A GitHub Actions secret containing a Slack bot user token."
+  channel:
+    description: "The Slack channel to notify when the scan finds issues (either a name '#my-channel' or an ID 'CXXXXXXXXXXX')"
+    required: true
+outputs:
+  issues-found:
+    description: "The number of open issues found by the scan"
+    value: ${{ steps.scan.outputs.issues-found }}
+  diff-url:
+    description: "A URL to view the issues found by the scan in the Aikido dashboard"
+    value: ${{ steps.scan.outputs.diff-url }}
+  scan-exit-code:
+    description: "The exit code returned by the Aikido CI API client"
+    value: ${{ steps.scan.outputs.scan-exit-code }}
+  slack-payload:
+    description: "The JSON payload sent to Slack, if the scan found issues"
+    value: ${{ steps.scan.outputs.slack-payload }}
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: "24.18.0"
+
+    - name: install Aikido CI API client
+      shell: bash --noprofile --norc -euo pipefail {0}
+      run: npm install --global @aikidosec/ci-api-client
+
+    - name: run Aikido scan
+      id: scan
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_APIKEY: ${{ inputs.apikey }}
+        INPUT_REPOSITORY: ${{ github.event.repository.name }}
+        INPUT_COMMIT_SHA: ${{ github.sha }}
+        INPUT_MIN_SEVERITY_LEVEL: ${{ inputs.min-severity-level }}
+        INPUT_FAIL_ON_SAST_SCAN: ${{ inputs.fail-on-sast-scan }}
+        INPUT_FAIL_ON_IAC_SCAN: ${{ inputs.fail-on-iac-scan }}
+        INPUT_FAIL_ON_SECRETS_SCAN: ${{ inputs.fail-on-secrets-scan }}
+        INPUT_FAIL_ON_DEPENDENCY_SCAN: ${{ inputs.fail-on-dependency-scan }}
+        INPUT_FAIL_ON_MALWARE_SCAN: ${{ inputs.fail-on-malware-scan }}
+        INPUT_NO_FAIL: ${{ inputs.no-fail }}
+        INPUT_BOT_TOKEN: ${{ inputs.bot-token }}
+        INPUT_CHANNEL: ${{ inputs.channel }}
+        INPUT_SERVER_URL: ${{ github.server_url }}
+        INPUT_REPOSITORY_FULL_NAME: ${{ github.repository }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/action.sh" \
+          --apikey "$INPUT_APIKEY" \
+          --repository "$INPUT_REPOSITORY" \
+          --commit-sha "$INPUT_COMMIT_SHA" \
+          --min-severity-level "$INPUT_MIN_SEVERITY_LEVEL" \
+          --fail-on-sast-scan "$INPUT_FAIL_ON_SAST_SCAN" \
+          --fail-on-iac-scan "$INPUT_FAIL_ON_IAC_SCAN" \
+          --fail-on-secrets-scan "$INPUT_FAIL_ON_SECRETS_SCAN" \
+          --fail-on-dependency-scan "$INPUT_FAIL_ON_DEPENDENCY_SCAN" \
+          --fail-on-malware-scan "$INPUT_FAIL_ON_MALWARE_SCAN" \
+          --no-fail "$INPUT_NO_FAIL" \
+          --bot-token "$INPUT_BOT_TOKEN" \
+          --channel "$INPUT_CHANNEL" \
+          --server-url "$INPUT_SERVER_URL" \
+          --repository-full-name "$INPUT_REPOSITORY_FULL_NAME"

@@ -80,6 +80,9 @@ runs:
         INPUT_CHANNEL: ${{ inputs.channel }}
         INPUT_SERVER_URL: ${{ github.server_url }}
         INPUT_REPOSITORY_FULL_NAME: ${{ github.repository }}
+        INPUT_BRANCH: ${{ github.head_ref || github.ref_name }}
+        INPUT_ACTOR: ${{ github.triggering_actor }}
+        INPUT_RUN_ID: ${{ github.run_id }}
       run: |
         bash "$GITHUB_ACTION_PATH/action.sh" \
           --apikey "$INPUT_APIKEY" \
@@ -95,4 +98,7 @@ runs:
           --bot-token "$INPUT_BOT_TOKEN" \
           --channel "$INPUT_CHANNEL" \
           --server-url "$INPUT_SERVER_URL" \
-          --repository-full-name "$INPUT_REPOSITORY_FULL_NAME"
+          --repository-full-name "$INPUT_REPOSITORY_FULL_NAME" \
+          --branch "$INPUT_BRANCH" \
+          --actor "$INPUT_ACTOR" \
+          --run-id "$INPUT_RUN_ID"

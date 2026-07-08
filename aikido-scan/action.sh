@@ -17,6 +17,9 @@ parse_args() {
   INPUT_CHANNEL=""
   INPUT_SERVER_URL=""
   INPUT_REPOSITORY_FULL_NAME=""
+  INPUT_BRANCH=""
+  INPUT_ACTOR=""
+  INPUT_RUN_ID=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --apikey)                    INPUT_APIKEY="$2"; shift; shift ;;
@@ -33,6 +36,9 @@ parse_args() {
       --channel)                   INPUT_CHANNEL="$2"; shift; shift ;;
       --server-url)                INPUT_SERVER_URL="$2"; shift; shift ;;
       --repository-full-name)      INPUT_REPOSITORY_FULL_NAME="$2"; shift; shift ;;
+      --branch)                    INPUT_BRANCH="$2"; shift; shift ;;
+      --actor)                     INPUT_ACTOR="$2"; shift; shift ;;
+      --run-id)                    INPUT_RUN_ID="$2"; shift; shift ;;
       *) echo "Unknown option '$1'"; exit 1 ;;
     esac
   done
@@ -56,11 +62,13 @@ parse_args() {
   readonly INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
     INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
-    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME
+    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
+    INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
   export INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
     INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
-    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME
+    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
+    INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
 }
 
 build_scan_args() {
@@ -81,9 +89,24 @@ build_slack_payload() {
   local diff_url="$2"
   local short_sha="${INPUT_COMMIT_SHA:0:7}"
   local commit_url="$INPUT_SERVER_URL/$INPUT_REPOSITORY_FULL_NAME/commit/$INPUT_COMMIT_SHA"
+  local run_url="$INPUT_SERVER_URL/$INPUT_REPOSITORY_FULL_NAME/actions/runs/$INPUT_RUN_ID"
+
+  # Plain-text fallback shown in notifications and by clients that can't render blocks.
+  local fallback="Aikido scan on $INPUT_REPOSITORY ($short_sha) found $issues issues: $diff_url"
+  local summary=":shield: Aikido scan found *$issues* issues on *$INPUT_REPOSITORY* — <$diff_url|View in Aikido>"
+  local context="branch \`$INPUT_BRANCH\` · <$commit_url|$short_sha> · by $INPUT_ACTOR · <$run_url|Workflow run>"
+
   slack_payload="$(jq -n \
-    --arg text "Aikido scan on <$commit_url|$INPUT_REPOSITORY ($short_sha)> found *$issues* issues: $diff_url" \
-    '{text: $text}')"
+    --arg text "$fallback" \
+    --arg summary "$summary" \
+    --arg context "$context" \
+    '{
+      text: $text,
+      blocks: [
+        {type: "section", text: {type: "mrkdwn", text: $summary}},
+        {type: "context", elements: [{type: "mrkdwn", text: $context}]}
+      ]
+    }')"
 }
 
 post_to_slack() {

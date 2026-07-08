@@ -13,6 +13,7 @@ parse_args() {
   INPUT_FAIL_ON_DEPENDENCY_SCAN=""
   INPUT_FAIL_ON_MALWARE_SCAN=""
   INPUT_NO_FAIL=""
+  INPUT_NOTIFY_SLACK=""
   INPUT_BOT_TOKEN=""
   INPUT_CHANNEL=""
   INPUT_SERVER_URL=""
@@ -32,6 +33,7 @@ parse_args() {
       --fail-on-dependency-scan)   INPUT_FAIL_ON_DEPENDENCY_SCAN="$2"; shift; shift ;;
       --fail-on-malware-scan)      INPUT_FAIL_ON_MALWARE_SCAN="$2"; shift; shift ;;
       --no-fail)                   INPUT_NO_FAIL="$2"; shift; shift ;;
+      --notify-slack)              INPUT_NOTIFY_SLACK="$2"; shift; shift ;;
       --bot-token)                 INPUT_BOT_TOKEN="$2"; shift; shift ;;
       --channel)                   INPUT_CHANNEL="$2"; shift; shift ;;
       --server-url)                INPUT_SERVER_URL="$2"; shift; shift ;;
@@ -53,21 +55,23 @@ parse_args() {
   if [ "$INPUT_COMMIT_SHA" = "" ]; then
     echo "Parameter 'commit-sha' is empty"; exit 1
   fi
-  if [ "$INPUT_BOT_TOKEN" = "" ]; then
-    echo "Parameter 'bot-token' is empty"; exit 1
-  fi
-  if [ "$INPUT_CHANNEL" = "" ]; then
-    echo "Parameter 'channel' is empty"; exit 1
+  if [ "$INPUT_NOTIFY_SLACK" = "true" ]; then
+    if [ "$INPUT_BOT_TOKEN" = "" ]; then
+      echo "Parameter 'bot-token' is empty"; exit 1
+    fi
+    if [ "$INPUT_CHANNEL" = "" ]; then
+      echo "Parameter 'channel' is empty"; exit 1
+    fi
   fi
   readonly INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
     INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
-    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
+    INPUT_NOTIFY_SLACK INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
     INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
   export INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
     INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
-    INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
+    INPUT_NOTIFY_SLACK INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
     INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
 }
 
@@ -143,20 +147,28 @@ main() {
   diff_url="$(grep -oP 'Diff url: \K\S+' "$log_file" || true)"
   issues="${issues:-0}"
 
+  slack_notified="false"
+  if [ "$scan_exit_code" != "0" ] && [ "$INPUT_NOTIFY_SLACK" = "true" ]; then
+    build_slack_payload "$issues" "$diff_url"
+    post_to_slack
+    slack_notified="true"
+  fi
+
   {
     echo "issues-found=$issues"
     echo "diff-url=$diff_url"
     echo "scan-exit-code=$scan_exit_code"
+    echo "slack-notified=$slack_notified"
   } >> "$GITHUB_OUTPUT"
 
   if [ "$scan_exit_code" != "0" ]; then
-    build_slack_payload "$issues" "$diff_url"
-    post_to_slack
-    {
-      echo "slack-payload<<AIKIDO_SCAN_EOF"
-      echo "$slack_payload"
-      echo "AIKIDO_SCAN_EOF"
-    } >> "$GITHUB_OUTPUT"
+    if [ "$slack_notified" = "true" ]; then
+      {
+        echo "slack-payload<<AIKIDO_SCAN_EOF"
+        echo "$slack_payload"
+        echo "AIKIDO_SCAN_EOF"
+      } >> "$GITHUB_OUTPUT"
+    fi
 
     if [ "$INPUT_NO_FAIL" = "true" ]; then
       echo "Aikido scan found issues (exit code $scan_exit_code), but 'no-fail' is enabled so the action will not fail"

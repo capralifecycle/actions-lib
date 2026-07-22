@@ -22,7 +22,7 @@ jobs:
       - name: "mise - install tools"
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
-          version: 2025.12.11
+          version: 2025.12.13
           install: true # run mise install
           cache: true
 

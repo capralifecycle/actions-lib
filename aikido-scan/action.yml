@@ -10,7 +10,7 @@ inputs:
       The minimum severity level of an issue that should cause the scan to fail.
 
       Allowed values: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-    default: "HIGH"
+    default: "CRITICAL"
   fail-on-sast-scan:
     description: "Whether the scan should fail if new SAST issues are found"
     default: "true"

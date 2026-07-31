@@ -32,7 +32,7 @@ inputs:
 
       When set to 'true', the scan still runs and Slack is still notified if issues are
       found, but the action itself exits successfully so CI can continue.
-    default: "false"
+    default: "true"
   notify-slack:
     description: |
       Whether to post a Slack notification when the scan finds issues.

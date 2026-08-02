@@ -26,13 +26,13 @@ inputs:
   fail-on-malware-scan:
     description: "Whether the scan should fail if malware is found"
     default: "false"
-  no-fail:
+  fails-on-any-finding:
     description: |
-      Whether the action should avoid failing the job when the scan finds issues.
+      Whether the action should fail the job when the scan finds issues.
 
-      When set to 'true', the scan still runs and Slack is still notified if issues are
+      When set to 'false', the scan still runs and Slack is still notified if issues are
       found, but the action itself exits successfully so CI can continue.
-    default: "true"
+    default: "false"
   notify-slack:
     description: |
       Whether to post a Slack notification when the scan finds issues.
@@ -84,7 +84,7 @@ runs:
         INPUT_FAIL_ON_SECRETS_SCAN: ${{ inputs.fail-on-secrets-scan }}
         INPUT_FAIL_ON_DEPENDENCY_SCAN: ${{ inputs.fail-on-dependency-scan }}
         INPUT_FAIL_ON_MALWARE_SCAN: ${{ inputs.fail-on-malware-scan }}
-        INPUT_NO_FAIL: ${{ inputs.no-fail }}
+        INPUT_FAILS_ON_ANY_FINDING: ${{ inputs.fails-on-any-finding }}
         INPUT_NOTIFY_SLACK: ${{ inputs.notify-slack }}
         INPUT_BOT_TOKEN: ${{ inputs.bot-token }}
         INPUT_CHANNEL: ${{ inputs.channel }}
@@ -104,7 +104,7 @@ runs:
           --fail-on-secrets-scan "$INPUT_FAIL_ON_SECRETS_SCAN" \
           --fail-on-dependency-scan "$INPUT_FAIL_ON_DEPENDENCY_SCAN" \
           --fail-on-malware-scan "$INPUT_FAIL_ON_MALWARE_SCAN" \
-          --no-fail "$INPUT_NO_FAIL" \
+          --fails-on-any-finding "$INPUT_FAILS_ON_ANY_FINDING" \
           --notify-slack "$INPUT_NOTIFY_SLACK" \
           --bot-token "$INPUT_BOT_TOKEN" \
           --channel "$INPUT_CHANNEL" \

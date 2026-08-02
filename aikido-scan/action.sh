@@ -12,7 +12,7 @@ parse_args() {
   INPUT_FAIL_ON_SECRETS_SCAN=""
   INPUT_FAIL_ON_DEPENDENCY_SCAN=""
   INPUT_FAIL_ON_MALWARE_SCAN=""
-  INPUT_NO_FAIL=""
+  INPUT_FAILS_ON_ANY_FINDING=""
   INPUT_NOTIFY_SLACK=""
   INPUT_BOT_TOKEN=""
   INPUT_CHANNEL=""
@@ -32,7 +32,7 @@ parse_args() {
       --fail-on-secrets-scan)      INPUT_FAIL_ON_SECRETS_SCAN="$2"; shift; shift ;;
       --fail-on-dependency-scan)   INPUT_FAIL_ON_DEPENDENCY_SCAN="$2"; shift; shift ;;
       --fail-on-malware-scan)      INPUT_FAIL_ON_MALWARE_SCAN="$2"; shift; shift ;;
-      --no-fail)                   INPUT_NO_FAIL="$2"; shift; shift ;;
+      --fails-on-any-finding)      INPUT_FAILS_ON_ANY_FINDING="$2"; shift; shift ;;
       --notify-slack)              INPUT_NOTIFY_SLACK="$2"; shift; shift ;;
       --bot-token)                 INPUT_BOT_TOKEN="$2"; shift; shift ;;
       --channel)                   INPUT_CHANNEL="$2"; shift; shift ;;
@@ -65,12 +65,12 @@ parse_args() {
   fi
   readonly INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
-    INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
+    INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_FAILS_ON_ANY_FINDING \
     INPUT_NOTIFY_SLACK INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
     INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
   export INPUT_APIKEY INPUT_REPOSITORY INPUT_COMMIT_SHA INPUT_MIN_SEVERITY_LEVEL \
     INPUT_FAIL_ON_SAST_SCAN INPUT_FAIL_ON_IAC_SCAN INPUT_FAIL_ON_SECRETS_SCAN \
-    INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_NO_FAIL \
+    INPUT_FAIL_ON_DEPENDENCY_SCAN INPUT_FAIL_ON_MALWARE_SCAN INPUT_FAILS_ON_ANY_FINDING \
     INPUT_NOTIFY_SLACK INPUT_BOT_TOKEN INPUT_CHANNEL INPUT_SERVER_URL INPUT_REPOSITORY_FULL_NAME \
     INPUT_BRANCH INPUT_ACTOR INPUT_RUN_ID
 }
@@ -170,8 +170,8 @@ main() {
       } >> "$GITHUB_OUTPUT"
     fi
 
-    if [ "$INPUT_NO_FAIL" = "true" ]; then
-      echo "Aikido scan found issues (exit code $scan_exit_code), but 'no-fail' is enabled so the action will not fail"
+    if [ "$INPUT_FAILS_ON_ANY_FINDING" != "true" ]; then
+      echo "Aikido scan found issues (exit code $scan_exit_code), but 'fails-on-any-finding' is disabled so the action will not fail"
       exit 0
     fi
     exit "$scan_exit_code"

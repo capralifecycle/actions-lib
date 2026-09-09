@@ -69,7 +69,7 @@ runs:
 
     - name: install Aikido CI API client
       shell: bash --noprofile --norc -euo pipefail {0}
-      run: npm install --global @aikidosec/ci-api-client
+      run: npm install --global @aikidosec/ci-api-client@1.0.18
 
     - name: run Aikido scan
       id: scan

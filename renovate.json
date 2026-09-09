@@ -10,5 +10,11 @@
       "matchPackageNames": ["^localstack"],
       "enabled": false
     }
-  ]
+  ],
+  "customManagers": [{
+    "customType": "regex",
+    "managerFilePatterns": ["/^aikido-scan/action\\.yml$/"],
+    "matchStrings": ["npm install --global (?<depName>@[^@\\s]+/[^@\\s]+)@(?<currentValue>\\S+)"],
+    "datasourceTemplate": "npm"
+  }]
 }

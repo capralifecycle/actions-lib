@@ -2,6 +2,40 @@
 
 ## Conventions
 
+### TypeScript
+
+New actions are written in TypeScript and run on the `node24` runtime.
+
+```
+<action>/
+  action.yml        # runs: {using: node24, main: dist/index.mjs}
+  dist/index.mjs    # bundle, committed
+  src/main.ts       # reads the environment, calls the core, writes outputs
+  src/<core>.ts     # pure functions
+  src/<core>.test.ts
+```
+
+Keep decisions in pure functions that take their inputs as arguments, including
+the clock. Confine the environment, git and the network to `main.ts`.
+
+GitHub upper-cases input names but leaves their hyphens intact, so `tag-type`
+arrives as `INPUT_TAG-TYPE`.
+
+GitHub never builds the action, so run `make dist` after changing a source file
+and commit the result. `make lint-dist` fails when a bundle and its source have
+drifted.
+
+```sh
+make build      # bun install, uv sync
+make test       # bun test
+make typecheck  # tsc --noEmit
+make dist       # rebuild the bundles
+```
+
+Bun is the package manager, bundler and test runner; there is no npm lockfile.
+`bunfig.toml` pins exact versions and enforces the same minimum release age the
+org Renovate preset applies to automated bumps.
+
 ### Shell scripts
 
 Most actions are implemented as composite actions using shell scripts.

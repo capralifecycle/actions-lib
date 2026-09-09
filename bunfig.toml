@@ -1,0 +1,5 @@
+[install]
+exact = true
+
+# Same minimum release age the org Renovate preset applies to automated bumps.
+minimumReleaseAge = 259200

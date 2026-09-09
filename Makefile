@@ -1,19 +1,23 @@
 SCRIPTS = ./dev-scripts
 
 .PHONY: all
-all: build lint
+all: build lint typecheck test
 
 .PHONY: build
 build:
-	npm install
+	bun install --frozen-lockfile
 	uv sync
 
 .PHONY: lint
-lint: lint-docs lint-shell lint-secrets lint-workflows
+lint: lint-docs lint-dist lint-shell lint-secrets lint-workflows
 
 .PHONY: lint-docs
 lint-docs:
 	$(SCRIPTS)/lint-docs.sh
+
+.PHONY: lint-dist
+lint-dist:
+	$(SCRIPTS)/lint-dist.sh
 
 .PHONY: lint-shell
 lint-shell:
@@ -30,6 +34,18 @@ lint-workflows:
 .PHONY: lint-commit-msg
 lint-commit-msg:
 	$(SCRIPTS)/lint-commit-message.sh
+
+.PHONY: dist
+dist:
+	$(SCRIPTS)/build-dist.sh
+
+.PHONY: test
+test:
+	bun test
+
+.PHONY: typecheck
+typecheck:
+	bunx tsc --noEmit
 
 .PHONY: docs
 docs:

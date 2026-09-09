@@ -31,31 +31,6 @@ inputs:
 outputs:
   tag:
     description: "The generated tag"
-    value: ${{ steps.generate.outputs.tag }}
 runs:
-  using: "composite"
-  steps:
-    - name: generate tag
-      id: generate
-      shell: bash --noprofile --norc -euo pipefail {0}
-      env:
-        INPUT_TAG_TYPE: ${{ inputs.tag-type }}
-        INPUT_TAG_PREFIX: ${{inputs.tag-prefix }}
-        INPUT_MAX_LENGTH: ${{ inputs.max-length }}
-        INPUT_ADD_AUTOMATIC_PREFIX: ${{ inputs.add-automatic-prefix }}
-      run: |
-        if [ "$INPUT_TAG_TYPE" = "hyphenated-alphanumeric-tag" ] && [ "$INPUT_ADD_AUTOMATIC_PREFIX" = "true" ]; then
-          # NOTE: We want to keep this as short as possible. Short for "non-default".
-          non_default_branch_tag_prefix="nd"
-          if [ "$INPUT_TAG_PREFIX" = "$non_default_branch_tag_prefix" ] || [ "$INPUT_TAG_PREFIX" = "$non_default_branch_tag_prefix-" ]; then
-            echo "The prefix '$INPUT_TAG_PREFIX' contains a reserved word '$non_default_branch_tag_prefix'" >&2
-            exit 1
-          fi
-          prefix="$non_default_branch_tag_prefix-$INPUT_TAG_PREFIX"
-        else
-          prefix="$INPUT_TAG_PREFIX"
-        fi
-        bash "$GITHUB_ACTION_PATH/action.sh" \
-          --tag-type "$INPUT_TAG_TYPE" \
-          --tag-prefix "$prefix" \
-          --max-length "$INPUT_MAX_LENGTH"
+  using: "node24"
+  main: "dist/index.mjs"

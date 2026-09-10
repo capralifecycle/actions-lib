@@ -32,14 +32,6 @@ jobs:
           install: true # run mise install
           cache: true
 
-      - name: python - install python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: "pyproject.toml"
-
-      - name: python - setup venv and install deps
-        run: uv sync --locked --all-extras --dev
-
       - name: "install dependencies"
         run: bun install --frozen-lockfile
 

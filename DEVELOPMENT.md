@@ -26,7 +26,7 @@ and commit the result. `make lint-dist` fails when a bundle and its source have
 drifted.
 
 ```sh
-make build      # bun install, uv sync
+make build      # bun install
 make test       # bun test
 make typecheck  # tsc --noEmit
 make dist       # rebuild the bundles
@@ -77,7 +77,7 @@ All shell scripts in the repository are automatically checked using shellcheck.
 
 Releases are made using semantic-release which checks the commit history and evaluates them according to conventional commits.
 
-A small Python script is used to automatically update the README with names, descriptions and metadata associated with each action. CI checks if the README is up-to-date, and if not prompts you to manually update the README using `generate-docs.py`.
+The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). Run `make docs` after changing an action's name or description, and commit the result. `make lint-docs` runs the same generator with `--check` and fails the build when the table has drifted.
 
 ### Tests
 

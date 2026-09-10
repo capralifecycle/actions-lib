@@ -4,20 +4,20 @@ A library containing operations that can be useful when using GitHub Actions for
 
 ## Actions
 
-Below is a summary of the actions in the library and a short description of what they do. Some of the actions can also be run locally by running an executable (`action.sh`, or `dist/index.mjs` for TypeScript actions) and passing in inputs as CLI arguments - such actions are marked with _Local usage_ in the table below.
+Below is a summary of the actions in the library and a short description of what they do. Some of the actions can also be run locally by running an executable (`action.sh`, or `dist/index.mjs` for TypeScript actions) and passing in inputs as CLI arguments - such actions are marked with _Local usage_ in the table below. _Runtime_ is the action's `runs.using` value: `composite` actions are implemented as shell, `node24` actions as JavaScript or TypeScript.
 
 <!-- ACTION_TABLE_START -->
-| Action | Description | Local usage |
-| --- | --- | --- |
-| [aikido-scan](aikido-scan/action.yml) | Run an Aikido release scan and post a summary to Slack if issues are found | ✅ |
-| [check-runtime-dependencies](check-runtime-dependencies/action.yml) | Check if the runtime has the expected dependencies | ❌ |
-| [configure-aws-credentials](configure-aws-credentials/action.yml) | Configure temporary AWS credentials using the GitHub Actions OpenID Connect Provider | ❌ |
-| [configure-github-deployment](configure-github-deployment/action.yml) | Create or update a GitHub deployment | ❌ |
-| [generate-tag](generate-tag/action.yml) | Generate unique tags for artifacts | ✅ |
-| [parse-config](parse-config/action.yml) | Parse and validate a JSON configuration and expose the configuration as separate outputs | ✅ |
-| [slack-notify](slack-notify/action.yml) | Send notifications to Slack | ❌ |
-| [trigger-deployment-pipeline](trigger-deployment-pipeline/action.yml) | Trigger Liflig CDK Pipelines in AWS | ✅ |
-| [upload-cdk-source](upload-cdk-source/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | ✅ |
-| [upload-cloud-assembly](upload-cloud-assembly/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | ✅ |
-| [upload-s3-artifact](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | ✅ |
+| Action | Description | Runtime | Local usage |
+| :--- | :--- | :---: | :---: |
+| [`aikido-scan`](aikido-scan/action.yml) | Run an Aikido release scan and post a summary to Slack if issues are found | `composite` | ✅ |
+| [`check-runtime-dependencies`](check-runtime-dependencies/action.yml) | Check if the runtime has the expected dependencies | `composite` | ❌ |
+| [`configure-aws-credentials`](configure-aws-credentials/action.yml) | Configure temporary AWS credentials using the GitHub Actions OpenID Connect Provider | `composite` | ❌ |
+| [`configure-github-deployment`](configure-github-deployment/action.yml) | Create or update a GitHub deployment | `composite` | ❌ |
+| [`generate-tag`](generate-tag/action.yml) | Generate unique tags for artifacts | `node24` | ✅ |
+| [`parse-config`](parse-config/action.yml) | Parse and validate a JSON configuration and expose the configuration as separate outputs | `node24` | ✅ |
+| [`slack-notify`](slack-notify/action.yml) | Send notifications to Slack | `node24` | ❌ |
+| [`trigger-deployment-pipeline`](trigger-deployment-pipeline/action.yml) | Trigger Liflig CDK Pipelines in AWS | `composite` | ✅ |
+| [`upload-cdk-source`](upload-cdk-source/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
+| [`upload-cloud-assembly`](upload-cloud-assembly/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
+| [`upload-s3-artifact`](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | `composite` | ✅ |
 <!-- ACTION_TABLE_END -->

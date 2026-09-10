@@ -1,9 +1,5 @@
-export type Result<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: string }
-
-const ok = <T>(value: T): Result<T> => ({ ok: true, value })
-const err = <T>(error: string): Result<T> => ({ ok: false, error })
+import type { Output } from "../../lib/actions.ts"
+import { type Result, err, ok } from "../../lib/result.ts"
 
 interface FieldSchema {
   /** The type of the field, or of each item when `collection` is set. */
@@ -28,12 +24,6 @@ const SCHEMA_VERSIONS: Record<string, Record<string, FieldSchema>> = {
 }
 
 export type Config = Record<string, unknown>
-
-/** One `name=value` line, in the order the configuration declared it. */
-export interface Output {
-  readonly name: string
-  readonly value: string
-}
 
 export function parseJson(serialized: string): Result<Config> {
   let parsed: unknown

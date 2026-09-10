@@ -7,6 +7,7 @@
 New actions are written in TypeScript and run on the `node24` runtime.
 
 ```
+lib/                # shared by every action, bundled into each one
 <action>/
   action.yml        # runs: {using: node24, main: dist/index.mjs}
   dist/index.mjs    # bundle, committed
@@ -17,6 +18,20 @@ New actions are written in TypeScript and run on the `node24` runtime.
 
 Keep decisions in pure functions that take their inputs as arguments, including
 the clock. Confine the environment, git and the network to `main.ts`.
+
+`lib/` holds what more than one action needs: `Result` for a failure a pure
+function reports as a value, and the Actions helpers for reading the
+environment, writing outputs and exiting with a message instead of a stack
+trace. The bundler inlines it, so
+each `dist/index.mjs` stays self-contained and there is no package to publish.
+Move code there when a second action needs it, not in anticipation.
+
+Actions are discovered by globbing `*/src/main.ts`, so `lib/` must never
+contain one; a `lib/src/main.ts` would be built as an action of its own.
+
+An action's inputs are validated in `main.ts` or the core, never assumed:
+`required: true` in `action.yml` is documentation, and GitHub does not enforce
+it — a missing input arrives as an empty string.
 
 GitHub upper-cases input names but leaves their hyphens intact, so `tag-type`
 arrives as `INPUT_TAG-TYPE`.

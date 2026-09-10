@@ -1,3 +1,5 @@
+import { type Result, err, ok } from "../../lib/result.ts"
+
 export const TAG_TYPES = [
   "punctuated-timestamp-tag",
   "hyphenated-alphanumeric-tag",
@@ -12,13 +14,6 @@ const NON_DEFAULT_BRANCH_PREFIX = "nd"
 const MIN_BRANCH_NAME_CHARACTERS = 10
 
 const SHORT_SHA_LENGTH = 8
-
-export type Result<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: string }
-
-const ok = <T>(value: T): Result<T> => ({ ok: true, value })
-const err = <T>(error: string): Result<T> => ({ ok: false, error })
 
 export interface TagRequest {
   readonly tagType: TagType

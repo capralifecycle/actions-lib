@@ -1,17 +1,15 @@
-import { appendFileSync, existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { parseArgs } from "node:util"
 
-import { type Output, parseConfig } from "./config.ts"
+import {
+  fail,
+  renderOutputs,
+  runningInActions,
+  writeOutputs,
+} from "../../lib/actions.ts"
+import { parseConfig } from "./config.ts"
 
-const runningInActions = process.env["GITHUB_ACTIONS"] === "true"
-
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`)
-  process.exit(1)
-}
-
-const required = (name: string): string =>
-  process.env[name] ?? fail(`Environment variable '${name}' is not set`)
+const inActions = runningInActions()
 
 interface Source {
   readonly config: string
@@ -52,19 +50,17 @@ function read({ config, configFile }: Source): string {
   return readFileSync(configFile, "utf8")
 }
 
-const source = runningInActions ? sourceFromEnvironment() : sourceFromArgv()
+const source = inActions ? sourceFromEnvironment() : sourceFromArgv()
 
 const outputs = parseConfig(read(source))
 if (!outputs.ok) fail(outputs.error)
 
-const render = (output: Output): string => `${output.name}=${output.value}\n`
-
-if (runningInActions) {
-  appendFileSync(required("GITHUB_OUTPUT"), outputs.value.map(render).join(""))
+if (inActions) {
+  writeOutputs(outputs.value)
   process.stdout.write(
     `Parsed configuration into ${outputs.value.length} output(s): ` +
       `${outputs.value.map((output) => output.name).join(", ")}\n`,
   )
 } else {
-  process.stdout.write(outputs.value.map(render).join(""))
+  process.stdout.write(renderOutputs(outputs.value))
 }

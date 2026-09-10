@@ -1,10 +1,27 @@
 // parse-config/src/main.ts
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-// parse-config/src/config.ts
+// lib/actions.ts
+import { appendFileSync } from "node:fs";
+var runningInActions = () => process.env["GITHUB_ACTIONS"] === "true";
+function fail(message) {
+  process.stderr.write(`${message}
+`);
+  process.exit(1);
+}
+var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
+var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
+`).join("");
+function writeOutputs(outputs) {
+  appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
+}
+
+// lib/result.ts
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
+
+// parse-config/src/config.ts
 var SCHEMA_VERSIONS = {
   "0.1": {
     version: { type: "string", required: true },
@@ -85,13 +102,7 @@ function parseConfig(serialized) {
 }
 
 // parse-config/src/main.ts
-var runningInActions = process.env["GITHUB_ACTIONS"] === "true";
-function fail(message) {
-  process.stderr.write(`${message}
-`);
-  process.exit(1);
-}
-var required = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
+var inActions = runningInActions();
 var sourceFromEnvironment = () => ({
   config: process.env["INPUT_CONFIG"] ?? "",
   configFile: process.env["INPUT_CONFIG-FILE"] ?? ""
@@ -123,16 +134,14 @@ function read({ config, configFile }) {
 `);
   return readFileSync(configFile, "utf8");
 }
-var source = runningInActions ? sourceFromEnvironment() : sourceFromArgv();
+var source = inActions ? sourceFromEnvironment() : sourceFromArgv();
 var outputs = parseConfig(read(source));
 if (!outputs.ok)
   fail(outputs.error);
-var render = (output) => `${output.name}=${output.value}
-`;
-if (runningInActions) {
-  appendFileSync(required("GITHUB_OUTPUT"), outputs.value.map(render).join(""));
+if (inActions) {
+  writeOutputs(outputs.value);
   process.stdout.write(`Parsed configuration into ${outputs.value.length} output(s): ` + `${outputs.value.map((output) => output.name).join(", ")}
 `);
 } else {
-  process.stdout.write(outputs.value.map(render).join(""));
+  process.stdout.write(renderOutputs(outputs.value));
 }

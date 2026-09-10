@@ -1,7 +1,25 @@
 // generate-tag/src/main.ts
 import { execFileSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+
+// lib/actions.ts
+import { appendFileSync } from "node:fs";
+var runningInActions = () => process.env["GITHUB_ACTIONS"] === "true";
+function fail(message) {
+  process.stderr.write(`${message}
+`);
+  process.exit(1);
+}
+var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
+var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
+`).join("");
+function writeOutputs(outputs) {
+  appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
+}
+
+// lib/result.ts
+var ok = (value) => ({ ok: true, value });
+var err = (error) => ({ ok: false, error });
 
 // generate-tag/src/tag.ts
 var TAG_TYPES = [
@@ -11,8 +29,6 @@ var TAG_TYPES = [
 var NON_DEFAULT_BRANCH_PREFIX = "nd";
 var MIN_BRANCH_NAME_CHARACTERS = 10;
 var SHORT_SHA_LENGTH = 8;
-var ok = (value) => ({ ok: true, value });
-var err = (error) => ({ ok: false, error });
 function parseTagType(value) {
   const match = TAG_TYPES.find((candidate) => candidate === value);
   return match ? ok(match) : err(`Unknown tag type '${value}'`);
@@ -71,13 +87,7 @@ function generateTag(request, context) {
 }
 
 // generate-tag/src/main.ts
-var runningInActions = process.env["GITHUB_ACTIONS"] === "true";
-function fail(message) {
-  process.stderr.write(`${message}
-`);
-  process.exit(1);
-}
-var required = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
+var inActions = runningInActions();
 var git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 function requestFromEnvironment() {
   const tagType = parseTagType(process.env["INPUT_TAG-TYPE"] ?? "");
@@ -122,9 +132,9 @@ function requestFromArgv() {
 }
 var contextFromActions = () => ({
   now: new Date,
-  commitSha: required("GITHUB_SHA"),
-  buildId: required("GITHUB_RUN_ID"),
-  branch: branchFromRef(required("GITHUB_REF"))
+  commitSha: requireEnv("GITHUB_SHA"),
+  buildId: requireEnv("GITHUB_RUN_ID"),
+  branch: branchFromRef(requireEnv("GITHUB_REF"))
 });
 var contextFromGit = () => ({
   now: new Date,
@@ -132,14 +142,13 @@ var contextFromGit = () => ({
   buildId: "local",
   branch: git("rev-parse", "--abbrev-ref", "HEAD")
 });
-var request = runningInActions ? requestFromEnvironment() : requestFromArgv();
-var context = runningInActions ? contextFromActions() : contextFromGit();
+var request = inActions ? requestFromEnvironment() : requestFromArgv();
+var context = inActions ? contextFromActions() : contextFromGit();
 var tag = generateTag(request, context);
 if (!tag.ok)
   fail(tag.error);
-if (runningInActions) {
-  appendFileSync(required("GITHUB_OUTPUT"), `tag=${tag.value}
-`);
+if (inActions) {
+  writeOutputs([{ name: "tag", value: tag.value }]);
 } else {
   process.stdout.write(`${tag.value}
 `);

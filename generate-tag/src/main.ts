@@ -1,7 +1,12 @@
 import { execFileSync } from "node:child_process"
-import { appendFileSync } from "node:fs"
 import { parseArgs } from "node:util"
 
+import {
+  fail,
+  requireEnv,
+  runningInActions,
+  writeOutputs,
+} from "../../lib/actions.ts"
 import {
   type BuildContext,
   type TagRequest,
@@ -11,15 +16,7 @@ import {
   parseTagType,
 } from "./tag.ts"
 
-const runningInActions = process.env["GITHUB_ACTIONS"] === "true"
-
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`)
-  process.exit(1)
-}
-
-const required = (name: string): string =>
-  process.env[name] ?? fail(`Environment variable '${name}' is not set`)
+const inActions = runningInActions()
 
 const git = (...args: string[]): string =>
   execFileSync("git", args, { encoding: "utf8" }).trim()
@@ -71,9 +68,9 @@ function requestFromArgv(): TagRequest {
 
 const contextFromActions = (): BuildContext => ({
   now: new Date(),
-  commitSha: required("GITHUB_SHA"),
-  buildId: required("GITHUB_RUN_ID"),
-  branch: branchFromRef(required("GITHUB_REF")),
+  commitSha: requireEnv("GITHUB_SHA"),
+  buildId: requireEnv("GITHUB_RUN_ID"),
+  branch: branchFromRef(requireEnv("GITHUB_REF")),
 })
 
 const contextFromGit = (): BuildContext => ({
@@ -83,14 +80,14 @@ const contextFromGit = (): BuildContext => ({
   branch: git("rev-parse", "--abbrev-ref", "HEAD"),
 })
 
-const request = runningInActions ? requestFromEnvironment() : requestFromArgv()
-const context = runningInActions ? contextFromActions() : contextFromGit()
+const request = inActions ? requestFromEnvironment() : requestFromArgv()
+const context = inActions ? contextFromActions() : contextFromGit()
 
 const tag = generateTag(request, context)
 if (!tag.ok) fail(tag.error)
 
-if (runningInActions) {
-  appendFileSync(required("GITHUB_OUTPUT"), `tag=${tag.value}\n`)
+if (inActions) {
+  writeOutputs([{ name: "tag", value: tag.value }])
 } else {
   process.stdout.write(`${tag.value}\n`)
 }

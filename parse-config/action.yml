@@ -42,4 +42,4 @@ outputs:
     description: "A list of production pipeline names, parsed from the configuration"
 runs:
   using: "node24"
-  main: action.mjs
+  main: "dist/index.mjs"

@@ -6,14 +6,13 @@ all: build lint typecheck test
 .PHONY: build
 build:
 	bun install --frozen-lockfile
-	uv sync
 
 .PHONY: lint
 lint: lint-docs lint-dist lint-shell lint-secrets lint-workflows
 
 .PHONY: lint-docs
 lint-docs:
-	$(SCRIPTS)/lint-docs.sh
+	bun $(SCRIPTS)/generate-docs.ts --check
 
 .PHONY: lint-dist
 lint-dist:
@@ -49,7 +48,7 @@ typecheck:
 
 .PHONY: docs
 docs:
-	$(SCRIPTS)/update-docs.sh
+	bun $(SCRIPTS)/generate-docs.ts
 
 .PHONY: install-tools
 install-tools:
@@ -63,7 +62,6 @@ clean:
 .PHONY: clean-all
 clean-all:
 	rm -rf node_modules
-	rm -rf .venv
 
 .PHONY: upgrade-deps
 upgrade-deps:

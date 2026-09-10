@@ -5,12 +5,6 @@
   ],
   "automerge": true,
   "automergeType": "branch",
-  "packageRules": [
-    {
-      "matchPackageNames": ["^localstack"],
-      "enabled": false
-    }
-  ],
   "customManagers": [{
     "customType": "regex",
     "managerFilePatterns": ["/^aikido-scan/action\\.yml$/"],

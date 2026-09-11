@@ -16,7 +16,7 @@ Below is a summary of the actions in the library and a short description of what
 | [`generate-tag`](generate-tag/action.yml) | Generate unique tags for artifacts | `node24` | ✅ |
 | [`parse-config`](parse-config/action.yml) | Parse and validate a JSON configuration and expose the configuration as separate outputs | `node24` | ✅ |
 | [`slack-notify`](slack-notify/action.yml) | Send notifications to Slack | `node24` | ❌ |
-| [`trigger-deployment-pipeline`](trigger-deployment-pipeline/action.yml) | Trigger Liflig CDK Pipelines in AWS | `composite` | ✅ |
+| [`trigger-deployment-pipeline`](trigger-deployment-pipeline/action.yml) | Trigger Liflig CDK Pipelines in AWS | `node24` | ✅ |
 | [`upload-cdk-source`](upload-cdk-source/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
 | [`upload-cloud-assembly`](upload-cloud-assembly/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
 | [`upload-s3-artifact`](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | `node24` | ✅ |

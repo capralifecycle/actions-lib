@@ -65,4 +65,4 @@ outputs:
     description: "The JSON payload that was sent to Slack"
 runs:
   using: "node24"
-  main: action.mjs
+  main: "dist/index.mjs"

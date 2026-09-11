@@ -26,6 +26,51 @@ function mask(value) {
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
 
+// lib/slack.ts
+var POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
+function parseTarget(botToken, incomingWebhookUrl, channel) {
+  if (botToken === "" && incomingWebhookUrl === "") {
+    return err("Either a bot token or an incoming webhook URL needs to be supplied");
+  }
+  if (botToken !== "" && incomingWebhookUrl !== "") {
+    return err("Can't use both a bot token and an incoming webhook URL");
+  }
+  if (botToken !== "" && channel === "") {
+    return err("A channel needs to be supplied if using a bot token");
+  }
+  return botToken !== "" ? ok({ kind: "bot", token: botToken }) : ok({ kind: "webhook", url: incomingWebhookUrl });
+}
+var buildBody = (payload, channel) => JSON.stringify({ ...payload, ...channel === "" ? {} : { channel } });
+var endpoint = (target) => target.kind === "webhook" ? target.url : POST_MESSAGE_URL;
+var headers = (target) => ({
+  ...target.kind === "bot" ? { Authorization: `Bearer ${target.token}` } : {},
+  "Content-Type": "application/json; charset=utf-8"
+});
+async function post(target, body) {
+  let response;
+  try {
+    response = await fetch(endpoint(target), {
+      method: "POST",
+      body,
+      headers: headers(target)
+    });
+  } catch (cause) {
+    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+  if (!response.ok) {
+    return err(`Request failed with status ${response.status} ${response.statusText}`);
+  }
+  if (target.kind === "webhook")
+    return ok(undefined);
+  let result;
+  try {
+    result = await response.json();
+  } catch (cause) {
+    return err(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+  return result.ok ? ok(undefined) : err(`Request failed with error ${result.error ?? "unknown"}`);
+}
+
 // aikido-scan/src/scan.ts
 var CONTEXT_NAMES = [
   "server-url",
@@ -147,7 +192,6 @@ function buildSlackPayload(repository, commitSha, findings, context) {
 
 // aikido-scan/src/main.ts
 var CLIENT_COMMAND = "aikido-api-client";
-var SLACK_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
 var INPUT_NAMES = [
   "apikey",
   "repository",
@@ -196,31 +240,12 @@ function runScan(args) {
   });
 }
 async function postToSlack(payload, inputs) {
-  let response;
-  try {
-    response = await fetch(SLACK_POST_MESSAGE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${inputs.botToken}`,
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      body: JSON.stringify({ ...payload, channel: inputs.channel })
-    });
-  } catch (cause) {
-    fail(`Failed to post message to Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
-  }
-  if (!response.ok) {
-    fail(`Failed to post message to Slack: ${response.status} ${response.statusText}`);
-  }
-  let body;
-  try {
-    body = await response.json();
-  } catch (cause) {
-    fail(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
-  }
-  if (!body.ok) {
-    fail(`Slack responded with an error: ${body.error ?? "unknown"}`);
-  }
+  const target = parseTarget(inputs.botToken, "", inputs.channel);
+  if (!target.ok)
+    fail(target.error);
+  const sent = await post(target.value, buildBody(payload, inputs.channel));
+  if (!sent.ok)
+    fail(sent.error);
 }
 var argv = inActions ? undefined : valuesFromArgv();
 var raw = argv ?? rawFromEnvironment();

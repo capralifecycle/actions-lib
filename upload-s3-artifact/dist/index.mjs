@@ -35351,17 +35351,14 @@ function collect(root, starts) {
     if (seen.has(real))
       continue;
     seen.add(real);
-    const children = readdirSync(path).sort();
-    if (children.length === 0) {
-      if (path !== root) {
-        entries.push({
-          name: `${toEntryName(relative(root, path))}/`,
-          mode: stats.mode,
-          content: new Uint8Array
-        });
-      }
-      continue;
+    if (path !== root) {
+      entries.push({
+        name: `${toEntryName(relative(root, path))}/`,
+        mode: stats.mode,
+        content: new Uint8Array
+      });
     }
+    const children = readdirSync(path).sort();
     for (const child of children.reverse())
       pending.push(join(path, child));
   }

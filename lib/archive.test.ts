@@ -39,6 +39,7 @@ function fixture(): string {
   writeFileSync(join(root, "data.txt"), "plain\n")
   chmodSync(join(root, "data.txt"), 0o644)
   mkdirSync(join(root, "nested"))
+  chmodSync(join(root, "nested"), 0o755)
   writeFileSync(join(root, "nested", "inner.txt"), "nested\n")
   chmodSync(join(root, "nested", "inner.txt"), 0o600)
   mkdirSync(join(root, "empty"))
@@ -68,6 +69,14 @@ describe("a zipped directory", () => {
 
   test("keeps an empty directory, which a file-only walk would lose", () => {
     expect(Object.keys(files)).toContain("empty/")
+  })
+
+  test("records every directory, as zip -r does, not only empty ones", () => {
+    expect(Object.keys(files)).toContain("nested/")
+  })
+
+  test("keeps a directory's own mode on its entry", () => {
+    expect(modeOf(zip, "nested/")).toBe(0o755)
   })
 })
 
@@ -106,7 +115,8 @@ describe("a deep tree", () => {
     }
     writeFileSync(join(directory, "bottom.txt"), "bottom\n")
     const names = Object.keys(unzipSync(built(root)))
-    expect(names).toEqual([`${"d/".repeat(200)}bottom.txt`])
+    expect(names).toContain(`${"d/".repeat(200)}bottom.txt`)
+    expect(names.filter((name) => name.endsWith("/"))).toHaveLength(200)
   })
 })
 

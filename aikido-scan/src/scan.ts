@@ -34,6 +34,43 @@ export interface RunContext {
   readonly runId: string
 }
 
+/** The context flags that stand in for the runner's environment locally. */
+export const CONTEXT_NAMES = [
+  "server-url",
+  "repository-full-name",
+  "branch",
+  "actor",
+  "run-id",
+] as const
+
+/**
+ * Every value here has a default environment variable on a runner, so the
+ * action reads them rather than having them threaded through as inputs.
+ * `GITHUB_HEAD_REF` is set only for a pull request, where it names the source
+ * branch; otherwise the run's own ref name is the branch.
+ */
+export function runContextFromEnvironment(
+  environment: Readonly<Record<string, string | undefined>>,
+): RunContext {
+  return {
+    serverUrl: environment["GITHUB_SERVER_URL"] ?? "",
+    repositoryFullName: environment["GITHUB_REPOSITORY"] ?? "",
+    branch: environment["GITHUB_HEAD_REF"] || (environment["GITHUB_REF_NAME"] ?? ""),
+    actor: environment["GITHUB_TRIGGERING_ACTOR"] ?? "",
+    runId: environment["GITHUB_RUN_ID"] ?? "",
+  }
+}
+
+export const runContextFromArgs = (
+  values: Readonly<Record<string, string>>,
+): RunContext => ({
+  serverUrl: values["server-url"] ?? "",
+  repositoryFullName: values["repository-full-name"] ?? "",
+  branch: values["branch"] ?? "",
+  actor: values["actor"] ?? "",
+  runId: values["run-id"] ?? "",
+})
+
 export interface Findings {
   readonly issues: number
   readonly diffUrl: string

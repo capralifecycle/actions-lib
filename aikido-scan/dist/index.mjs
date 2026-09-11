@@ -27,6 +27,29 @@ var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
 
 // aikido-scan/src/scan.ts
+var CONTEXT_NAMES = [
+  "server-url",
+  "repository-full-name",
+  "branch",
+  "actor",
+  "run-id"
+];
+function runContextFromEnvironment(environment) {
+  return {
+    serverUrl: environment["GITHUB_SERVER_URL"] ?? "",
+    repositoryFullName: environment["GITHUB_REPOSITORY"] ?? "",
+    branch: environment["GITHUB_HEAD_REF"] || (environment["GITHUB_REF_NAME"] ?? ""),
+    actor: environment["GITHUB_TRIGGERING_ACTOR"] ?? "",
+    runId: environment["GITHUB_RUN_ID"] ?? ""
+  };
+}
+var runContextFromArgs = (values) => ({
+  serverUrl: values["server-url"] ?? "",
+  repositoryFullName: values["repository-full-name"] ?? "",
+  branch: values["branch"] ?? "",
+  actor: values["actor"] ?? "",
+  runId: values["run-id"] ?? ""
+});
 var isTrue = (value) => value === "true";
 function collectInputs(environment, names) {
   const lookup = (name) => {
@@ -142,25 +165,18 @@ var INPUT_NAMES = [
 ];
 var inActions = runningInActions();
 var rawFromEnvironment = () => collectInputs(process.env, INPUT_NAMES);
-function rawFromArgv() {
+function valuesFromArgv() {
   try {
     const { values } = parseArgs({
-      options: Object.fromEntries(INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]))
+      options: Object.fromEntries([...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
+        name,
+        { type: "string", default: "" }
+      ]))
     });
     return values;
   } catch (cause) {
     fail(cause instanceof Error ? cause.message : String(cause));
   }
-}
-function contextFromEnvironment() {
-  const branch = process.env["GITHUB_HEAD_REF"] || process.env["GITHUB_REF_NAME"];
-  return {
-    serverUrl: process.env["GITHUB_SERVER_URL"] ?? "",
-    repositoryFullName: process.env["GITHUB_REPOSITORY"] ?? "",
-    branch: branch ?? "",
-    actor: process.env["GITHUB_TRIGGERING_ACTOR"] ?? "",
-    runId: process.env["GITHUB_RUN_ID"] ?? ""
-  };
 }
 function runScan(args) {
   return new Promise((resolve) => {
@@ -196,12 +212,19 @@ async function postToSlack(payload, inputs) {
   if (!response.ok) {
     fail(`Failed to post message to Slack: ${response.status} ${response.statusText}`);
   }
-  const body = await response.json();
+  let body;
+  try {
+    body = await response.json();
+  } catch (cause) {
+    fail(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
   if (!body.ok) {
     fail(`Slack responded with an error: ${body.error ?? "unknown"}`);
   }
 }
-var raw = inActions ? rawFromEnvironment() : rawFromArgv();
+var argv = inActions ? undefined : valuesFromArgv();
+var raw = argv ?? rawFromEnvironment();
+var context = argv ? runContextFromArgs(argv) : runContextFromEnvironment(process.env);
 mask(raw["apikey"] ?? "");
 mask(raw["bot-token"] ?? "");
 var inputs = parseInputs(raw);
@@ -215,7 +238,7 @@ var findings = parseScanLog(log);
 var slackNotified = false;
 var payload;
 if (shouldNotify(exitCode, inputs.value)) {
-  payload = buildSlackPayload(inputs.value.scan.repository, inputs.value.scan.commitSha, findings, contextFromEnvironment());
+  payload = buildSlackPayload(inputs.value.scan.repository, inputs.value.scan.commitSha, findings, context);
   await postToSlack(payload, inputs.value);
   slackNotified = true;
   process.stdout.write(`Notified Slack channel ${inputs.value.channel}

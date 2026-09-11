@@ -7,6 +7,8 @@ import {
   exitCodeFor,
   parseInputs,
   parseScanLog,
+  runContextFromArgs,
+  runContextFromEnvironment,
   shouldNotify,
 } from "./scan.ts"
 import { buildSlackPayload } from "./slack.ts"
@@ -205,5 +207,81 @@ describe("the Slack payload", () => {
     expect(payload.blocks[1]?.elements?.[0]?.text).toBe(
       "branch `main` · <https://github.com/an-org/my-repo/commit/abcdef1234567890|abcdef1> · by someone · <https://github.com/an-org/my-repo/actions/runs/42|Workflow run>",
     )
+  })
+})
+
+describe("the run context", () => {
+  const environment = {
+    GITHUB_SERVER_URL: "https://github.com",
+    GITHUB_REPOSITORY: "an-org/my-repo",
+    GITHUB_REF_NAME: "main",
+    GITHUB_TRIGGERING_ACTOR: "someone",
+    GITHUB_RUN_ID: "42",
+  }
+
+  test("comes from the runner's own default variables", () => {
+    expect(runContextFromEnvironment(environment)).toEqual({
+      serverUrl: "https://github.com",
+      repositoryFullName: "an-org/my-repo",
+      branch: "main",
+      actor: "someone",
+      runId: "42",
+    })
+  })
+
+  test("names the source branch of a pull request, not its merge ref", () => {
+    expect(
+      runContextFromEnvironment({
+        ...environment,
+        GITHUB_HEAD_REF: "my-feature",
+        GITHUB_REF_NAME: "7/merge",
+      }).branch,
+    ).toBe("my-feature")
+  })
+
+  test("falls back to the ref name when there is no pull request", () => {
+    expect(
+      runContextFromEnvironment({ ...environment, GITHUB_HEAD_REF: "" }).branch,
+    ).toBe("main")
+  })
+
+  test("reports the user who started this run, which a re-run can change", () => {
+    // GITHUB_ACTOR is the original author on a re-run; the notification should
+    // credit whoever pressed the button.
+    expect(
+      runContextFromEnvironment({
+        ...environment,
+        GITHUB_ACTOR: "original-author",
+        GITHUB_TRIGGERING_ACTOR: "whoever-reran-it",
+      }).actor,
+    ).toBe("whoever-reran-it")
+  })
+
+  test("is empty rather than undefined when nothing is set", () => {
+    expect(runContextFromEnvironment({})).toEqual({
+      serverUrl: "",
+      repositoryFullName: "",
+      branch: "",
+      actor: "",
+      runId: "",
+    })
+  })
+
+  test("can be supplied by flag when running outside a workflow", () => {
+    expect(
+      runContextFromArgs({
+        "server-url": "https://github.example",
+        "repository-full-name": "an-org/my-repo",
+        branch: "a-branch",
+        actor: "me",
+        "run-id": "7",
+      }),
+    ).toEqual({
+      serverUrl: "https://github.example",
+      repositoryFullName: "an-org/my-repo",
+      branch: "a-branch",
+      actor: "me",
+      runId: "7",
+    })
   })
 })

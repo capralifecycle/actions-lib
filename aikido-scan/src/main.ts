@@ -8,6 +8,7 @@ import {
   writeOutputs,
 } from "../../lib/actions.ts"
 import {
+  CONTEXT_NAMES,
   type Inputs,
   type RunContext,
   buildScanArgs,
@@ -15,6 +16,8 @@ import {
   exitCodeFor,
   parseInputs,
   parseScanLog,
+  runContextFromArgs,
+  runContextFromEnvironment,
   scanFailed,
   shouldNotify,
 } from "./scan.ts"
@@ -44,31 +47,19 @@ const inActions = runningInActions()
 const rawFromEnvironment = (): Record<string, string> =>
   collectInputs(process.env, INPUT_NAMES)
 
-function rawFromArgv(): Record<string, string> {
+function valuesFromArgv(): Record<string, string> {
   try {
     const { values } = parseArgs({
       options: Object.fromEntries(
-        INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]),
+        [...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
+          name,
+          { type: "string", default: "" },
+        ]),
       ),
     })
     return values as Record<string, string>
   } catch (cause) {
     fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
-
-/**
- * The repository, commit and branch a scan reports on are the ones the workflow
- * is running for, so they come from the runner rather than from inputs.
- */
-function contextFromEnvironment(): RunContext {
-  const branch = process.env["GITHUB_HEAD_REF"] || process.env["GITHUB_REF_NAME"]
-  return {
-    serverUrl: process.env["GITHUB_SERVER_URL"] ?? "",
-    repositoryFullName: process.env["GITHUB_REPOSITORY"] ?? "",
-    branch: branch ?? "",
-    actor: process.env["GITHUB_TRIGGERING_ACTOR"] ?? "",
-    runId: process.env["GITHUB_RUN_ID"] ?? "",
   }
 }
 
@@ -91,6 +82,8 @@ function runScan(args: readonly string[]): Promise<ScanResult> {
     }
     child.stdout.on("data", tee)
     child.stderr.on("data", tee)
+    // A client that never ran has found nothing, which must not be reported as
+    // a clean scan; the shell version let exit code 127 pass as a green result.
     child.on("error", (cause) =>
       fail(`Failed to run '${CLIENT_COMMAND}': ${cause.message}`),
     )
@@ -122,13 +115,24 @@ async function postToSlack(
       `Failed to post message to Slack: ${response.status} ${response.statusText}`,
     )
   }
-  const body = (await response.json()) as { ok?: boolean; error?: string }
+  let body: { ok?: boolean; error?: string }
+  try {
+    body = (await response.json()) as { ok?: boolean; error?: string }
+  } catch (cause) {
+    fail(
+      `Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`,
+    )
+  }
   if (!body.ok) {
     fail(`Slack responded with an error: ${body.error ?? "unknown"}`)
   }
 }
 
-const raw = inActions ? rawFromEnvironment() : rawFromArgv()
+const argv = inActions ? undefined : valuesFromArgv()
+const raw = argv ?? rawFromEnvironment()
+const context: RunContext = argv
+  ? runContextFromArgs(argv)
+  : runContextFromEnvironment(process.env)
 
 mask(raw["apikey"] ?? "")
 mask(raw["bot-token"] ?? "")
@@ -152,7 +156,7 @@ if (shouldNotify(exitCode, inputs.value)) {
     inputs.value.scan.repository,
     inputs.value.scan.commitSha,
     findings,
-    contextFromEnvironment(),
+    context,
   )
   await postToSlack(payload, inputs.value)
   slackNotified = true

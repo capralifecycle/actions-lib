@@ -88,28 +88,4 @@ runs:
         INPUT_NOTIFY_SLACK: ${{ inputs.notify-slack }}
         INPUT_BOT_TOKEN: ${{ inputs.bot-token }}
         INPUT_CHANNEL: ${{ inputs.channel }}
-        INPUT_SERVER_URL: ${{ github.server_url }}
-        INPUT_REPOSITORY_FULL_NAME: ${{ github.repository }}
-        INPUT_BRANCH: ${{ github.head_ref || github.ref_name }}
-        INPUT_ACTOR: ${{ github.triggering_actor }}
-        INPUT_RUN_ID: ${{ github.run_id }}
-      run: |
-        bash "$GITHUB_ACTION_PATH/action.sh" \
-          --apikey "$INPUT_APIKEY" \
-          --repository "$INPUT_REPOSITORY" \
-          --commit-sha "$INPUT_COMMIT_SHA" \
-          --min-severity-level "$INPUT_MIN_SEVERITY_LEVEL" \
-          --fail-on-sast-scan "$INPUT_FAIL_ON_SAST_SCAN" \
-          --fail-on-iac-scan "$INPUT_FAIL_ON_IAC_SCAN" \
-          --fail-on-secrets-scan "$INPUT_FAIL_ON_SECRETS_SCAN" \
-          --fail-on-dependency-scan "$INPUT_FAIL_ON_DEPENDENCY_SCAN" \
-          --fail-on-malware-scan "$INPUT_FAIL_ON_MALWARE_SCAN" \
-          --fails-on-any-finding "$INPUT_FAILS_ON_ANY_FINDING" \
-          --notify-slack "$INPUT_NOTIFY_SLACK" \
-          --bot-token "$INPUT_BOT_TOKEN" \
-          --channel "$INPUT_CHANNEL" \
-          --server-url "$INPUT_SERVER_URL" \
-          --repository-full-name "$INPUT_REPOSITORY_FULL_NAME" \
-          --branch "$INPUT_BRANCH" \
-          --actor "$INPUT_ACTOR" \
-          --run-id "$INPUT_RUN_ID"
+      run: node "$GITHUB_ACTION_PATH/dist/index.mjs"

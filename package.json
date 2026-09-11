@@ -18,5 +18,10 @@
     "@types/node": "26.5.0",
     "semantic-release": "25.0.9",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1127.0",
+    "@aws-sdk/lib-storage": "3.1127.0",
+    "fflate": "0.8.3"
   }
 }

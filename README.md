@@ -19,5 +19,5 @@ Below is a summary of the actions in the library and a short description of what
 | [`trigger-deployment-pipeline`](trigger-deployment-pipeline/action.yml) | Trigger Liflig CDK Pipelines in AWS | `composite` | ✅ |
 | [`upload-cdk-source`](upload-cdk-source/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
 | [`upload-cloud-assembly`](upload-cloud-assembly/action.yml) | Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline | `composite` | ✅ |
-| [`upload-s3-artifact`](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | `composite` | ✅ |
+| [`upload-s3-artifact`](upload-s3-artifact/action.yml) | Upload a file or directory to S3 | `node24` | ✅ |
 <!-- ACTION_TABLE_END -->

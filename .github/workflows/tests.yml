@@ -6,6 +6,9 @@ on:
 jobs:
   test-actions:
     runs-on: ubuntu-24.04
+    env:
+      # Points both the AWS CLI and the actions' SDK clients at LocalStack.
+      AWS_ENDPOINT_URL: "http://localhost:4566"
     permissions:
       actions: read
       id-token: write

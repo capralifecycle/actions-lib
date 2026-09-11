@@ -6,6 +6,9 @@ on:
 jobs:
   test-actions:
     runs-on: ubuntu-24.04
+    env:
+      # Points the AWS CLI and the SDK clients inside the actions at LocalStack.
+      AWS_ENDPOINT_URL: "http://localhost:4566"
     permissions:
       actions: read
       id-token: write
@@ -182,6 +185,18 @@ jobs:
           aws-iam-role-name: ${{ steps.act-parse-config.outputs.roleName }}
           # NOTE: Unsupported API call in localstack
           # authenticate-to-ecr: true
+      # LocalStack cannot serve the ECR call, so the ECR path is not exercised.
+      # Asserting the outputs are populated at least catches the wrapped action
+      # no longer returning the credentials that path depends on.
+      - name: assert-configure-aws-credentials-has-outputs
+        env:
+          ASSERT_GOT_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}
+          ASSERT_GOT_SECRET_ACCESS_KEY: ${{ steps.act-configure-aws-credentials.outputs.aws-secret-access-key }}
+          ASSERT_GOT_SESSION_TOKEN: ${{ steps.act-configure-aws-credentials.outputs.aws-session-token }}
+        run: |
+          test "$ASSERT_GOT_ACCESS_KEY_ID" != ""
+          test "$ASSERT_GOT_SECRET_ACCESS_KEY" != ""
+          test "$ASSERT_GOT_SESSION_TOKEN" != ""
       - name: assert-configure-aws-credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}

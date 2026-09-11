@@ -33,22 +33,22 @@ runs:
   using: "composite"
   steps:
     - name: configure aws credentials
-      # NOTE: This is a bit stricter than the default shell options used by GitHub Actions (`bash --noprofile --norc -e -o pipefail {0}`)
-      shell: bash --noprofile --norc -euo pipefail {0}
       id: credentials
+      uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+      with:
+        role-to-assume: "arn:aws:iam::${{ inputs.aws-account-id }}:role/${{ inputs.aws-iam-role-name }}"
+        role-session-name: ${{ inputs.aws-iam-role-session-name }}
+        aws-region: ${{ inputs.aws-region }}
+        output-credentials: true
+        # Off by default, so a later step only sees credentials it was given.
+        output-env-credentials: ${{ inputs.add-credentials-to-environment }}
+
+    - name: export aws region
+      shell: bash --noprofile --norc -euo pipefail {0}
       env:
-        INPUT_AWS_ACCOUNT_ID: ${{ inputs.aws-account-id }}
-        INPUT_AWS_IAM_ROLE_NAME: ${{ inputs.aws-iam-role-name }}
-        INPUT_AWS_IAM_ROLE_SESSION_NAME: ${{ inputs.aws-iam-role-session-name }}
         INPUT_AWS_REGION: ${{ inputs.aws-region }}
-        INPUT_ADD_CREDENTIALS_TO_ENVIRONMENT: ${{ inputs.add-credentials-to-environment }}
-      run: |
-        bash "$GITHUB_ACTION_PATH/action.sh" \
-          --aws-account-id "$INPUT_AWS_ACCOUNT_ID" \
-          --aws-iam-role-session-name "$INPUT_AWS_IAM_ROLE_SESSION_NAME" \
-          --aws-iam-role-name "$INPUT_AWS_IAM_ROLE_NAME" \
-          --aws-region "$INPUT_AWS_REGION" \
-          --add-credentials-to-environment "$INPUT_ADD_CREDENTIALS_TO_ENVIRONMENT"
+      run: echo "AWS_REGION=$INPUT_AWS_REGION" >> "$GITHUB_ENV"
+
     - name: authenticate to ecr
       if: ${{ inputs.authenticate-to-ecr == 'true' }}
       shell: bash --noprofile --norc -euo pipefail {0}

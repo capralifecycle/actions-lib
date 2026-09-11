@@ -7,6 +7,7 @@ import {
   runningInActions,
   writeOutputs,
 } from "../../lib/actions.ts"
+import { buildBody, parseTarget, post } from "../../lib/slack.ts"
 import {
   CONTEXT_NAMES,
   type Inputs,
@@ -24,7 +25,6 @@ import {
 import { type SlackPayload, buildSlackPayload } from "./slack.ts"
 
 const CLIENT_COMMAND = "aikido-api-client"
-const SLACK_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 
 const INPUT_NAMES = [
   "apikey",
@@ -95,37 +95,11 @@ async function postToSlack(
   payload: SlackPayload,
   inputs: Inputs,
 ): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(SLACK_POST_MESSAGE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${inputs.botToken}`,
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      body: JSON.stringify({ ...payload, channel: inputs.channel }),
-    })
-  } catch (cause) {
-    fail(
-      `Failed to post message to Slack: ${cause instanceof Error ? cause.message : String(cause)}`,
-    )
-  }
-  if (!response.ok) {
-    fail(
-      `Failed to post message to Slack: ${response.status} ${response.statusText}`,
-    )
-  }
-  let body: { ok?: boolean; error?: string }
-  try {
-    body = (await response.json()) as { ok?: boolean; error?: string }
-  } catch (cause) {
-    fail(
-      `Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`,
-    )
-  }
-  if (!body.ok) {
-    fail(`Slack responded with an error: ${body.error ?? "unknown"}`)
-  }
+  const target = parseTarget(inputs.botToken, "", inputs.channel)
+  if (!target.ok) fail(target.error)
+
+  const sent = await post(target.value, buildBody(payload, inputs.channel))
+  if (!sent.ok) fail(sent.error)
 }
 
 const argv = inActions ? undefined : valuesFromArgv()

@@ -41,11 +41,16 @@ and commit the result. `make lint-dist` fails when a bundle and its source have
 drifted.
 
 ```sh
+make ci         # everything CI runs
 make build      # bun install
 make test       # bun test
 make typecheck  # tsc --noEmit
 make dist       # rebuild the bundles
 ```
+
+`make ci` is what the workflow calls, so a green run locally is a green run in
+CI. It refuses a tree where a generated file has drifted from its source, since
+the bundles, the README table and the lockfile are all committed.
 
 Bun is the package manager, bundler and test runner; there is no npm lockfile.
 `bunfig.toml` pins exact versions and enforces the same minimum release age the

@@ -32,26 +32,8 @@ jobs:
           install: true # run mise install
           cache: true
 
-      - name: "install dependencies"
-        run: bun install --frozen-lockfile
-
-      - name: typecheck
-        run: make typecheck
-
-      - name: unit tests
-        run: make test
-
-      - name: lint bundles
-        run: make lint-dist
-
-      - name: lint workflows
-        run: make lint-workflows
-
-      - name: lint shellscripts
-        run: make lint-shell
-
-      - name: lint docs
-        run: make lint-docs
+      - name: ci
+        run: make ci
 
   conditional-release:
     needs:

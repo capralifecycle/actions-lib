@@ -34654,9 +34654,10 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   exports.waitUntilObjectNotExists = waitUntilObjectNotExists;
 });
 
-// upload-s3-artifact/src/main.ts
-import { readFileSync as readFileSync2, statSync as statSync2 } from "node:fs";
-import { basename } from "node:path";
+// upload-cdk-source/src/main.ts
+import { existsSync, mkdtempSync, readdirSync as readdirSync2, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as join2 } from "node:path";
 import { parseArgs } from "node:util";
 
 // lib/actions.ts
@@ -35364,9 +35365,7 @@ function collect(root, starts) {
   }
   return entries;
 }
-function zipDirectory(directory) {
-  return archive(directory, [directory]);
-}
+var zipPaths = (root, names) => archive(root, names.map((name) => join(root, name)));
 function archive(root, starts) {
   const directory = root;
   let entries;
@@ -35903,24 +35902,22 @@ async function putObject(request) {
   return result.VersionId;
 }
 
-// upload-s3-artifact/src/key.ts
-function extensionOf(filename) {
-  const dot = filename.lastIndexOf(".");
-  return dot === -1 ? "" : filename.slice(dot + 1);
+// upload-cdk-source/src/source.ts
+function includeMatcher(includeFiles) {
+  const alternatives = includeFiles.trim().split(/\s+/).filter(Boolean);
+  return new RegExp(`^(${alternatives.join("|")})$`);
 }
-function s3Key(request) {
-  const suffix = request.extension === "" ? "" : `.${request.extension}`;
-  const key = request.explicitKey === "" ? `${request.checksum}${suffix}` : request.explicitKey;
-  return `${request.prefix}${key}`;
-}
+var selectEntries = (names, includeFiles) => {
+  const matches = includeMatcher(includeFiles);
+  return names.filter((name) => matches.test(name)).sort();
+};
+var buildMetadata = (bucketName, bucketKey, versionId) => ({ bucketName, bucketKey, versionId });
+var renderMetadata = (metadata) => `${JSON.stringify(metadata, null, 2)}
+`;
 
-// upload-s3-artifact/src/main.ts
-var INPUT_NAMES = [
-  "aws-s3-bucket-name",
-  "aws-s3-key",
-  "aws-s3-key-prefix",
-  "target-path"
-];
+// upload-cdk-source/src/main.ts
+var DEFAULT_INCLUDE_FILES = "assets cdk.json cdk.context.json package.*\\.json src tsconfig\\.json";
+var INPUT_NAMES = ["aws-s3-bucket-name", "include-files", "cdk-app-dir"];
 var inActions = runningInActions();
 var fromEnvironment = () => Object.fromEntries(INPUT_NAMES.map((name) => {
   const upper = name.toUpperCase();
@@ -35941,47 +35938,52 @@ function fromArgv() {
 }
 var inputs = inActions ? fromEnvironment() : fromArgv();
 var bucket = inputs["aws-s3-bucket-name"] ?? "";
-var targetPath = inputs["target-path"] ?? "";
 if (bucket === "")
   fail("Parameter 'aws-s3-bucket-name' is empty");
-if (targetPath === "")
-  fail("Parameter 'target-path' is empty");
-function read(path) {
-  let stats;
-  try {
-    stats = statSync2(path);
-  } catch {
-    fail(`No file or directory at path '${path}'`);
-  }
-  if (stats.isDirectory()) {
-    process.stdout.write(`Found directory at path '${path}', zipping it
-`);
-    const archive = zipDirectory(path);
-    if (!archive.ok)
-      fail(archive.error);
-    return { content: archive.value, filename: "target.zip" };
-  }
-  process.stdout.write(`Found file at path '${path}'
-`);
-  return { content: new Uint8Array(readFileSync2(path)), filename: basename(path) };
+var includeFiles = inputs["include-files"] ?? "";
+if (inActions && includeFiles === "")
+  fail("Parameter 'include-files' is empty");
+var patterns = includeFiles === "" ? DEFAULT_INCLUDE_FILES : includeFiles;
+var sourceDirectory = (inputs["cdk-app-dir"] ?? "") === "" ? process.env["GITHUB_WORKSPACE"] ?? process.cwd() : inputs["cdk-app-dir"];
+if (!existsSync(join2(sourceDirectory, "cdk.json"))) {
+  fail(`No cdk.json file found in '${sourceDirectory}'. You may need to set the 'cdk-app-dir' input.`);
 }
-var { content, filename } = read(targetPath);
-var key = s3Key({
-  explicitKey: inputs["aws-s3-key"] ?? "",
-  prefix: inputs["aws-s3-key-prefix"] ?? "",
-  checksum: sha256(content),
-  extension: extensionOf(filename)
-});
-process.stdout.write(`Uploading ${content.byteLength} bytes to s3://${bucket}/${key}
-`);
+var present;
 try {
-  await putObject({ bucket, key, body: content });
+  present = readdirSync2(sourceDirectory);
+} catch (cause) {
+  fail(`Failed to read '${sourceDirectory}': ${cause instanceof Error ? cause.message : String(cause)}`);
+}
+var selected = selectEntries(present, patterns);
+if (selected.length === 0) {
+  fail(`Nothing in '${sourceDirectory}' matched the 'include-files' patterns`);
+}
+process.stdout.write(`Archiving ${selected.join(", ")}
+`);
+var archive2 = zipPaths(sourceDirectory, selected);
+if (!archive2.ok)
+  fail(archive2.error);
+var key = `${sha256(archive2.value)}.zip`;
+process.stdout.write(`Uploading ${archive2.value.byteLength} bytes of CDK source to s3://${bucket}/${key}
+`);
+var versionId;
+try {
+  versionId = await putObject({ bucket, key, body: archive2.value });
 } catch (cause) {
   fail(`Failed to upload to s3://${bucket}/${key}: ${cause instanceof Error ? cause.message : String(cause)}`);
 }
+if (versionId === undefined) {
+  process.stdout.write(`s3://${bucket} returned no version id; is versioning enabled on the bucket?
+`);
+}
+var metadataFile = join2(mkdtempSync(join2(process.env["RUNNER_TEMP"] ?? tmpdir(), "cdk-source-")), "cdk-source.json");
+var metadata = renderMetadata(buildMetadata(bucket, key, versionId ?? "None"));
+writeFileSync(metadataFile, metadata);
+process.stdout.write(`Wrote ${metadataFile}:
+${metadata}`);
 if (inActions) {
-  writeOutputs([{ name: "aws-s3-key", value: key }]);
+  writeOutputs([{ name: "cdk-source-metadata-file", value: metadataFile }]);
 } else {
-  process.stdout.write(`${key}
+  process.stdout.write(`${metadataFile}
 `);
 }

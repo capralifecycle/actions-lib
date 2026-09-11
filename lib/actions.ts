@@ -28,3 +28,8 @@ export const renderOutputs = (outputs: readonly Output[]): string =>
 export function writeOutputs(outputs: readonly Output[]): void {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs))
 }
+
+/** Keeps a value out of the workflow log, wherever it is later echoed. */
+export function mask(value: string): void {
+  if (value !== "") process.stdout.write(`::add-mask::${value}\n`)
+}

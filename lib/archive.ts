@@ -33,40 +33,52 @@ interface Entry {
 }
 
 /**
- * Walks a directory the way `zip -r` does: symlinks are followed and the file
- * they point at is stored, and empty directories are kept as entries of their
- * own so the archive still describes the tree.
+ * Walks the tree under each starting path the way `zip -r` does: symlinks are
+ * followed and the file they point at is stored, and empty directories are
+ * kept as entries of their own so the archive still describes the tree.
+ *
+ * Iterative rather than recursive, so the depth of the tree cannot exhaust the
+ * call stack. Children are visited in sorted order, so the same tree always
+ * produces the same archive and therefore the same content-addressed key.
  */
-function collect(root: string, directory: string, seen: Set<string>): Entry[] {
+function collect(root: string, starts: readonly string[]): Entry[] {
+  const entries: Entry[] = []
   // Directories are reached through symlinks as well, so a link pointing at an
-  // ancestor would otherwise recurse until the stack runs out.
-  const real = realpathSync(directory)
-  if (seen.has(real)) return []
-  seen.add(real)
+  // ancestor would otherwise be walked forever.
+  const seen = new Set<string>()
+  const pending = [...starts].reverse()
 
-  const children = readdirSync(directory, { withFileTypes: true })
-  if (children.length === 0 && directory !== root) {
-    return [
-      {
-        name: `${toEntryName(relative(root, directory))}/`,
-        mode: statSync(directory).mode,
-        content: new Uint8Array(),
-      },
-    ]
+  while (pending.length > 0) {
+    const path = pending.pop() as string
+    const stats = statSync(path)
+
+    if (!stats.isDirectory()) {
+      entries.push({
+        name: toEntryName(relative(root, path)),
+        mode: stats.mode,
+        content: new Uint8Array(readFileSync(path)),
+      })
+      continue
+    }
+
+    const real = realpathSync(path)
+    if (seen.has(real)) continue
+    seen.add(real)
+
+    const children = readdirSync(path).sort()
+    if (children.length === 0) {
+      if (path !== root) {
+        entries.push({
+          name: `${toEntryName(relative(root, path))}/`,
+          mode: stats.mode,
+          content: new Uint8Array(),
+        })
+      }
+      continue
+    }
+    for (const child of children.reverse()) pending.push(join(path, child))
   }
-  return children.flatMap((child) => {
-    const path = join(directory, child.name)
-    // statSync follows symlinks, so a link contributes its target's content.
-    return statSync(path).isDirectory()
-      ? collect(root, path, seen)
-      : [
-          {
-            name: toEntryName(relative(root, path)),
-            mode: statSync(path).mode,
-            content: new Uint8Array(readFileSync(path)),
-          },
-        ]
-  })
+  return entries
 }
 
 /**
@@ -77,7 +89,7 @@ function collect(root: string, directory: string, seen: Set<string>): Entry[] {
 export function zipDirectory(directory: string): Result<Uint8Array> {
   let entries: Entry[]
   try {
-    entries = collect(directory, directory, new Set())
+    entries = collect(directory, [directory])
   } catch (cause) {
     return err(
       `Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`,

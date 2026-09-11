@@ -35332,36 +35332,45 @@ var MAX_ENTRIES = 65535;
 var MAX_BYTES = 4294967295;
 var modeAttributes = (mode) => (mode & 65535) << 16;
 var toEntryName = (path) => path.split(sep).join("/");
-function collect(root, directory, seen) {
-  const real = realpathSync(directory);
-  if (seen.has(real))
-    return [];
-  seen.add(real);
-  const children = readdirSync(directory, { withFileTypes: true });
-  if (children.length === 0 && directory !== root) {
-    return [
-      {
-        name: `${toEntryName(relative(root, directory))}/`,
-        mode: statSync(directory).mode,
-        content: new Uint8Array
-      }
-    ];
-  }
-  return children.flatMap((child) => {
-    const path = join(directory, child.name);
-    return statSync(path).isDirectory() ? collect(root, path, seen) : [
-      {
+function collect(root, starts) {
+  const entries = [];
+  const seen = new Set;
+  const pending = [...starts].reverse();
+  while (pending.length > 0) {
+    const path = pending.pop();
+    const stats = statSync(path);
+    if (!stats.isDirectory()) {
+      entries.push({
         name: toEntryName(relative(root, path)),
-        mode: statSync(path).mode,
+        mode: stats.mode,
         content: new Uint8Array(readFileSync(path))
+      });
+      continue;
+    }
+    const real = realpathSync(path);
+    if (seen.has(real))
+      continue;
+    seen.add(real);
+    const children = readdirSync(path).sort();
+    if (children.length === 0) {
+      if (path !== root) {
+        entries.push({
+          name: `${toEntryName(relative(root, path))}/`,
+          mode: stats.mode,
+          content: new Uint8Array
+        });
       }
-    ];
-  });
+      continue;
+    }
+    for (const child of children.reverse())
+      pending.push(join(path, child));
+  }
+  return entries;
 }
 function zipDirectory(directory) {
   let entries;
   try {
-    entries = collect(directory, directory, new Set);
+    entries = collect(directory, [directory]);
   } catch (cause) {
     return err2(`Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`);
   }

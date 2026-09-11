@@ -95,3 +95,24 @@ describe("a directory that cannot be archived", () => {
     expect(Object.keys(unzipSync(built(root)))).toContain("a.txt")
   })
 })
+
+describe("a deep tree", () => {
+  test("is walked to the bottom without recursing once per level", () => {
+    const root = mkdtempSync(join(tmpdir(), "archive-deep-"))
+    let directory = root
+    for (let level = 0; level < 200; level++) {
+      directory = join(directory, "d")
+      mkdirSync(directory)
+    }
+    writeFileSync(join(directory, "bottom.txt"), "bottom\n")
+    const names = Object.keys(unzipSync(built(root)))
+    expect(names).toEqual([`${"d/".repeat(200)}bottom.txt`])
+  })
+})
+
+describe("the same tree", () => {
+  test("always produces the same archive, so its key is stable", () => {
+    const root = fixture()
+    expect(sha256(built(root))).toBe(sha256(built(root)))
+  })
+})

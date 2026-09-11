@@ -153,9 +153,12 @@ try {
 } catch (cause) {
   fail(`Failed to read the commit being deployed: ${describe(cause)}`)
 }
-const triggerText = buildTrigger(context)
-const trigger = new TextEncoder().encode(triggerText)
-process.stdout.write(`Trigger file:\n${triggerText}`)
+const trigger = new TextEncoder().encode(buildTrigger(context))
+// The file also names the commit author and whoever started the run, which the
+// log has no need to repeat.
+process.stdout.write(
+  `Triggering ${inputs.pipelines.length} pipeline(s) for ${context.commitHash} on ${context.branchName} (${inputs.triggerType})\n`,
+)
 
 // Parameters go first: a pipeline started by its trigger reads them at once.
 for (const parameter of inputs.artifactParameters) {

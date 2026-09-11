@@ -47753,10 +47753,9 @@ try {
 } catch (cause) {
   fail(`Failed to read the commit being deployed: ${describe(cause)}`);
 }
-var triggerText = buildTrigger(context);
-var trigger = new TextEncoder().encode(triggerText);
-process.stdout.write(`Trigger file:
-${triggerText}`);
+var trigger = new TextEncoder().encode(buildTrigger(context));
+process.stdout.write(`Triggering ${inputs.pipelines.length} pipeline(s) for ${context.commitHash} on ${context.branchName} (${inputs.triggerType})
+`);
 for (const parameter of inputs.artifactParameters) {
   const name = `${ARTIFACT_PARAMETER_NAMESPACE}/${parameter.name}`;
   try {

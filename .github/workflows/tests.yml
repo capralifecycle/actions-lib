@@ -6,6 +6,9 @@ on:
 jobs:
   test-actions:
     runs-on: ubuntu-24.04
+    env:
+      # Points both the AWS CLI and the actions' SDK clients at LocalStack.
+      AWS_ENDPOINT_URL: "http://localhost:4566"
     permissions:
       actions: read
       id-token: write
@@ -297,7 +300,10 @@ jobs:
         env:
           ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
           ASSERT_EXPECTED: ${{ steps.arrange-upload-s3-artifact-file.outputs.file-checksum }}
-        run: aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
+          ASSERT_GOT: ${{ steps.act-upload-s3-artifact-file.outputs.aws-s3-key }}
+        run: |
+          aws s3api head-object --bucket "$ARTIFACT_BUCKET" --key "$ASSERT_EXPECTED"
+          test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
       - name: arrange-upload-s3-artifact-directory
         id: arrange-upload-s3-artifact-directory
         env:

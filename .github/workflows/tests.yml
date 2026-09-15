@@ -185,6 +185,42 @@ jobs:
           aws-iam-role-name: ${{ steps.act-parse-config.outputs.roleName }}
           # NOTE: Unsupported API call in localstack
           # authenticate-to-ecr: true
+      # LocalStack cannot serve the ECR call, so the ECR path is not exercised.
+      # Asserting the outputs are populated at least catches the wrapped action
+      # no longer returning the credentials that path depends on.
+      - name: assert-configure-aws-credentials-has-outputs
+        env:
+          ASSERT_GOT_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}
+          ASSERT_GOT_SECRET_ACCESS_KEY: ${{ steps.act-configure-aws-credentials.outputs.aws-secret-access-key }}
+          ASSERT_GOT_SESSION_TOKEN: ${{ steps.act-configure-aws-credentials.outputs.aws-session-token }}
+        run: |
+          test "$ASSERT_GOT_ACCESS_KEY_ID" != ""
+          test "$ASSERT_GOT_SECRET_ACCESS_KEY" != ""
+          test "$ASSERT_GOT_SESSION_TOKEN" != ""
+      # 62 of the 65 repositories using this action take the default, which keeps
+      # credentials out of the environment so that only the steps given them can
+      # use them. Nothing else would notice if that stopped being true.
+      - name: assert-configure-aws-credentials-keeps-credentials-out-of-the-environment
+        run: |
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN; do
+            if [ -n "${!name:-}" ]; then
+              echo "$name reached the job environment" >&2
+              exit 1
+            fi
+          done
+          test -n "${AWS_REGION:-}"
+      - uses: ./configure-aws-credentials
+        name: act-configure-aws-credentials-missing-role-should-fail
+        id: act-configure-aws-credentials-missing-role-should-fail
+        continue-on-error: true
+        with:
+          aws-account-id: ${{ steps.act-parse-config.outputs.accountId }}
+          aws-iam-role-name: ""
+      - name: assert-configure-aws-credentials-missing-role-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-configure-aws-credentials-missing-role-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
       - name: assert-configure-aws-credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}

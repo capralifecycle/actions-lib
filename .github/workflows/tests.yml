@@ -565,3 +565,23 @@ jobs:
           ASSERT_EXPECTED: "failure"
           ASSERT_GOT: ${{ steps.act-upload-cdk-source-without-cdk-json-should-fail.outcome }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: upload-cloud-assembly
+      #
+      ######################################################
+      # Only the precondition is checked here. Synthesising needs the CDK CLI,
+      # and standing that in for would test the stand-in rather than the action.
+      - uses: ./upload-cloud-assembly
+        name: act-upload-cloud-assembly-without-cdk-json-should-fail
+        id: act-upload-cloud-assembly-without-cdk-json-should-fail
+        continue-on-error: true
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          cdk-app-dir: ${{ runner.temp }}
+      - name: assert-upload-cloud-assembly-without-cdk-json-should-fail
+        id: assert-upload-cloud-assembly-without-cdk-json-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-upload-cloud-assembly-without-cdk-json-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"

@@ -87,9 +87,23 @@ function collect(root: string, starts: readonly string[]): Entry[] {
  * matters for anything that is run rather than read after deployment.
  */
 export function zipDirectory(directory: string): Result<Uint8Array> {
+  return archive(directory, [directory])
+}
+
+/**
+ * Archives `names`, which are relative to `root`, recursing into any that are
+ * directories. Entry names stay relative to `root`.
+ */
+export const zipPaths = (
+  root: string,
+  names: readonly string[],
+): Result<Uint8Array> => archive(root, names.map((name) => join(root, name)))
+
+function archive(root: string, starts: readonly string[]): Result<Uint8Array> {
+  const directory = root
   let entries: Entry[]
   try {
-    entries = collect(directory, [directory])
+    entries = collect(root, starts)
   } catch (cause) {
     return err(
       `Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`,

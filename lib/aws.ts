@@ -1,4 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3"
+import { PutParameterCommand, SSMClient } from "@aws-sdk/client-ssm"
 import { Upload } from "@aws-sdk/lib-storage"
 
 /**
@@ -39,4 +40,11 @@ export async function putObject(
   })
   const result = await upload.done()
   return result.VersionId
+}
+
+/** Writes a plain string parameter, replacing any value already there. */
+export async function putParameter(name: string, value: string): Promise<void> {
+  await new SSMClient({}).send(
+    new PutParameterCommand({ Name: name, Value: value, Type: "String", Overwrite: true }),
+  )
 }

@@ -1,0 +1,11 @@
+# gitleaks reads two adjacent quoted strings as a key and its value, so an
+# action's own input names can look like a credential.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Action input names, and bundles generated from sources that are scanned"
+# A bundle only contains what its sources contain, and those are scanned; the
+# vendored SDK inside them is megabytes of third-party code to no purpose here.
+paths = ['''dist/index\.mjs$''']
+regexes = ['''aws-s3-key-prefix''']

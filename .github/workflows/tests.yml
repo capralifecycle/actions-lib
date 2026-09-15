@@ -532,3 +532,36 @@ jobs:
           ASSERT_EXPECTED: "failure"
           ASSERT_GOT: ${{ steps.act-aikido-scan-missing-required-input-should-fail.outcome }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
+      # test: upload-cdk-source
+      #
+      ######################################################
+      - name: arrange-upload-cdk-source
+        id: arrange-upload-cdk-source
+        run: ./upload-cdk-source/test.sh arrange
+      - uses: ./upload-cdk-source
+        name: act-upload-cdk-source
+        id: act-upload-cdk-source
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          cdk-app-dir: ${{ steps.arrange-upload-cdk-source.outputs.dir }}
+      - name: assert-upload-cdk-source
+        id: assert-upload-cdk-source
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          METADATA_FILE: ${{ steps.act-upload-cdk-source.outputs.cdk-source-metadata-file }}
+        run: ./upload-cdk-source/test.sh assert
+      - uses: ./upload-cdk-source
+        name: act-upload-cdk-source-without-cdk-json-should-fail
+        id: act-upload-cdk-source-without-cdk-json-should-fail
+        continue-on-error: true
+        with:
+          aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          cdk-app-dir: ${{ runner.temp }}
+      - name: assert-upload-cdk-source-without-cdk-json-should-fail
+        id: assert-upload-cdk-source-without-cdk-json-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-upload-cdk-source-without-cdk-json-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"

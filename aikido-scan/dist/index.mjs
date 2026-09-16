@@ -121,8 +121,7 @@ function parseInputs(raw) {
         sast: isTrue(value("fail-on-sast-scan")),
         iac: isTrue(value("fail-on-iac-scan")),
         secrets: isTrue(value("fail-on-secrets-scan")),
-        dependency: value("fail-on-dependency-scan") !== "false",
-        malware: isTrue(value("fail-on-malware-scan"))
+        dependency: value("fail-on-dependency-scan") !== "false"
       }
     },
     notifySlack,
@@ -150,8 +149,6 @@ function buildScanArgs(request) {
     args.push("--fail-on-secrets-scan");
   if (!request.failOn.dependency)
     args.push("--no-fail-on-dependency-scan");
-  if (request.failOn.malware)
-    args.push("--fail-on-malware-scan");
   return args;
 }
 function parseScanLog(log) {
@@ -201,7 +198,6 @@ var INPUT_NAMES = [
   "fail-on-iac-scan",
   "fail-on-secrets-scan",
   "fail-on-dependency-scan",
-  "fail-on-malware-scan",
   "fails-on-any-finding",
   "notify-slack",
   "bot-token",

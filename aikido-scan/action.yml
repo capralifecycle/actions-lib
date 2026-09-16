@@ -23,9 +23,6 @@ inputs:
   fail-on-dependency-scan:
     description: "Whether the scan should fail if new dependency vulnerabilities are found"
     default: "true"
-  fail-on-malware-scan:
-    description: "Whether the scan should fail if malware is found"
-    default: "false"
   fails-on-any-finding:
     description: |
       Whether the action should fail the job when the scan finds issues.
@@ -83,7 +80,6 @@ runs:
         INPUT_FAIL_ON_IAC_SCAN: ${{ inputs.fail-on-iac-scan }}
         INPUT_FAIL_ON_SECRETS_SCAN: ${{ inputs.fail-on-secrets-scan }}
         INPUT_FAIL_ON_DEPENDENCY_SCAN: ${{ inputs.fail-on-dependency-scan }}
-        INPUT_FAIL_ON_MALWARE_SCAN: ${{ inputs.fail-on-malware-scan }}
         INPUT_FAILS_ON_ANY_FINDING: ${{ inputs.fails-on-any-finding }}
         INPUT_NOTIFY_SLACK: ${{ inputs.notify-slack }}
         INPUT_BOT_TOKEN: ${{ inputs.bot-token }}

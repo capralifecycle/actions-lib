@@ -6,7 +6,6 @@ export interface FailOn {
   readonly iac: boolean
   readonly secrets: boolean
   readonly dependency: boolean
-  readonly malware: boolean
 }
 
 export interface ScanRequest {
@@ -126,7 +125,6 @@ export function parseInputs(raw: Readonly<Record<string, string>>): Result<Input
         // The client fails on dependency findings by default and only offers a
         // flag to turn that off, so anything but an explicit "false" leaves it on.
         dependency: value("fail-on-dependency-scan") !== "false",
-        malware: isTrue(value("fail-on-malware-scan")),
       },
     },
     notifySlack,
@@ -151,7 +149,6 @@ export function buildScanArgs(request: ScanRequest): string[] {
   if (request.failOn.iac) args.push("--fail-on-iac-scan")
   if (request.failOn.secrets) args.push("--fail-on-secrets-scan")
   if (!request.failOn.dependency) args.push("--no-fail-on-dependency-scan")
-  if (request.failOn.malware) args.push("--fail-on-malware-scan")
   return args
 }
 

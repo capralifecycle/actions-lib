@@ -49,6 +49,19 @@ runs:
           exit 1
         fi
 
+    - name: check ecr prerequisites
+      if: ${{ inputs.authenticate-to-ecr == 'true' }}
+      shell: bash --noprofile --norc -euo pipefail {0}
+      run: |
+        # Checked before the role is assumed, so a runner without these fails
+        # without first fetching a registry password into the log.
+        for binary in aws docker; do
+          if ! command -v "$binary" >/dev/null; then
+            echo "Parameter 'authenticate-to-ecr' is true, but '$binary' is not installed on this runner" >&2
+            exit 1
+          fi
+        done
+
     - name: configure aws credentials
       id: credentials
       uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4

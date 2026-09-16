@@ -35,7 +35,6 @@ const INPUT_NAMES = [
   "fail-on-iac-scan",
   "fail-on-secrets-scan",
   "fail-on-dependency-scan",
-  "fail-on-malware-scan",
   "fails-on-any-finding",
   "notify-slack",
   "bot-token",

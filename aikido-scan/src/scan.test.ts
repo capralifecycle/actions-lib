@@ -13,6 +13,19 @@ import {
 } from "./scan.ts"
 import { buildSlackPayload } from "./slack.ts"
 
+/**
+ * Every option the pinned client declares. Its argument parser rejects anything
+ * else outright, so an option that is merely plausible fails the whole scan.
+ */
+const CLIENT_OPTIONS = [
+  "--apikey",
+  "--minimum-severity-level",
+  "--fail-on-sast-scan",
+  "--fail-on-iac-scan",
+  "--fail-on-secrets-scan",
+  "--no-fail-on-dependency-scan",
+]
+
 const raw = (overrides: Record<string, string> = {}): Record<string, string> => ({
   apikey: "secret",
   repository: "my-repo",
@@ -22,7 +35,6 @@ const raw = (overrides: Record<string, string> = {}): Record<string, string> => 
   "fail-on-iac-scan": "true",
   "fail-on-secrets-scan": "true",
   "fail-on-dependency-scan": "true",
-  "fail-on-malware-scan": "false",
   "fails-on-any-finding": "false",
   "notify-slack": "false",
   "bot-token": "",
@@ -118,7 +130,22 @@ describe("scan arguments", () => {
     expect(args).toContain("--fail-on-sast-scan")
     expect(args).toContain("--fail-on-iac-scan")
     expect(args).toContain("--fail-on-secrets-scan")
-    expect(args).not.toContain("--fail-on-malware-scan")
+  })
+
+  test("name only options the client accepts", () => {
+    const combinations = [
+      inputs(),
+      inputs({ "min-severity-level": "" }),
+      inputs({ "fail-on-dependency-scan": "false" }),
+      inputs({ "fail-on-sast-scan": "false", "fail-on-iac-scan": "false" }),
+    ]
+    for (const combination of combinations) {
+      for (const arg of buildScanArgs(combination.scan).filter((a) =>
+        a.startsWith("--"),
+      )) {
+        expect(CLIENT_OPTIONS).toContain(arg)
+      }
+    }
   })
 
   test("opt out of dependency findings, which the client fails on by default", () => {

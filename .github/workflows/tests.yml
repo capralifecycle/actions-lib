@@ -259,28 +259,6 @@ jobs:
           echo "$ASSERT_GOT" | jq --exit-status --arg key "$ASSERT_EXPECTED_PAYLOAD_KEY" 'has($key)'
       ######################################################
       #
-      # test: check-runtime-dependencies
-      #
-      ######################################################
-      - uses: ./check-runtime-dependencies
-        name: act-check-runtime-dependencies-should-fail
-        id: act-check-runtime-dependencies-should-fail
-        continue-on-error: true
-        with:
-          dependencies: "non-existing-dependency"
-      - uses: ./check-runtime-dependencies
-        name: act-check-runtime-dependencies-should-succeed
-        id: act-check-runtime-dependencies-should-succeed
-        with:
-          dependencies: "aws curl"
-      - name: assert-check-runtime-dependencies-should-fail
-        id: assert-check-runtime-dependencies-should-fail
-        env:
-          ASSERT_EXPECTED: "failure"
-          ASSERT_GOT: ${{ steps.act-check-runtime-dependencies-should-fail.outcome }}
-        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
-      ######################################################
-      #
       # test: generate-tag
       #
       ######################################################

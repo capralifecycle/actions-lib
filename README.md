@@ -10,7 +10,6 @@ Below is a summary of the actions in the library and a short description of what
 | Action | Description | Runtime | Local usage |
 | :--- | :--- | :---: | :---: |
 | [`aikido-scan`](aikido-scan/action.yml) | Run an Aikido release scan and post a summary to Slack if issues are found | `composite` | ✅ |
-| [`check-runtime-dependencies`](check-runtime-dependencies/action.yml) | Check if the runtime has the expected dependencies | `composite` | ❌ |
 | [`configure-aws-credentials`](configure-aws-credentials/action.yml) | Configure temporary AWS credentials using the GitHub Actions OpenID Connect Provider | `composite` | ❌ |
 | [`configure-github-deployment`](configure-github-deployment/action.yml) | Create or update a GitHub deployment | `node24` | ❌ |
 | [`generate-tag`](generate-tag/action.yml) | Generate unique tags for artifacts | `node24` | ✅ |

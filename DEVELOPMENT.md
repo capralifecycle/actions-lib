@@ -36,13 +36,13 @@ it — a missing input arrives as an empty string.
 GitHub upper-cases input names but leaves their hyphens intact, so `tag-type`
 arrives as `INPUT_TAG-TYPE`.
 
-GitHub never builds the action, so run `make dist` after changing a source file
-and commit the result. `make lint-dist` fails when a bundle and its source have
-drifted.
+GitHub never builds the action, so the bundles are committed. `make` rebuilds
+them along with the README table; commit the result.
 
 ```sh
-make ci         # everything CI runs
-make build      # bun install
+make            # build, lint, typecheck and test
+make ci         # the same, failing if it changed a tracked file
+make build      # bun install, then regenerate the bundles and the README
 make test       # bun test
 make typecheck  # tsc --noEmit
 make dist       # rebuild the bundles
@@ -97,7 +97,7 @@ All shell scripts in the repository are automatically checked using shellcheck.
 
 Releases are made using semantic-release which checks the commit history and evaluates them according to conventional commits.
 
-The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). Run `make docs` after changing an action's name or description, and commit the result. `make lint-docs` runs the same generator with `--check` and fails the build when the table has drifted.
+The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). `make` regenerates it, so commit the result after changing an action's name or description. `make lint-docs` runs the same generator with `--check`, and the pre-commit hook uses it to catch a stale table.
 
 ### Tests
 

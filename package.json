@@ -8,7 +8,7 @@
   },
   "overrides": {
     "semantic-release": {
-      "@semantic-release/npm": "13.1.5"
+      "@semantic-release/npm": "13.2.0"
     }
   },
   "devDependencies": {

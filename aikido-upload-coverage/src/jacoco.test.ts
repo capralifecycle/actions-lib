@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { type SourceFile, jacocoToLcov, parseJacoco, toLcov } from "./jacoco.ts"
+import { type SourceFile, jacocoToLcov, locateSources, parseJacoco, toLcov } from "./jacoco.ts"
 
 const report = (body: string): string =>
   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -136,9 +136,25 @@ describe("writing LCOV", () => {
   })
 })
 
+describe("locating source files in the repository", () => {
+  const locate = (sourcePath: string, repositoryFiles: string[]): string =>
+    locateSources([{ path: sourcePath, lines: [] }], repositoryFiles)[0]?.path as string
+
+  test.each([
+    ["the one file ending with the package path", "com/x/Foo.kt", ["src/main/kotlin/com/x/Foo.kt", "src/main/kotlin/com/x/Bar.kt"], "src/main/kotlin/com/x/Foo.kt"],
+    ["a file already at the package path", "com/x/Foo.kt", ["com/x/Foo.kt"], "com/x/Foo.kt"],
+    ["a module's file in a multi-module build", "com/x/Foo.kt", ["api/src/main/kotlin/com/x/Foo.kt", "core/src/main/kotlin/com/y/Foo.kt"], "api/src/main/kotlin/com/x/Foo.kt"],
+    ["no file, keeping the package path", "com/x/Foo.kt", ["src/main/kotlin/com/x/Bar.kt"], "com/x/Foo.kt"],
+    ["several files, keeping the package path", "com/x/Foo.kt", ["a/src/main/kotlin/com/x/Foo.kt", "b/src/main/kotlin/com/x/Foo.kt"], "com/x/Foo.kt"],
+    ["only a match on a whole directory name", "com/x/Foo.kt", ["src/main/kotlin/acom/x/Foo.kt"], "com/x/Foo.kt"],
+  ])("resolves to %s", (_, sourcePath, repositoryFiles, expected) => {
+    expect(locate(sourcePath, repositoryFiles)).toBe(expected)
+  })
+})
+
 describe("converting a JaCoCo report to LCOV", () => {
   test("refuses a report with no line counters", () => {
-    expect(jacocoToLcov(report('<package name="a"><sourcefile name="A.kt"></sourcefile></package>'))).toEqual({
+    expect(jacocoToLcov(report('<package name="a"><sourcefile name="A.kt"></sourcefile></package>'), [])).toEqual({
       ok: false,
       error: "The JaCoCo report has no line counters to convert",
     })

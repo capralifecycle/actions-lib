@@ -71,21 +71,21 @@ describe("naming the converted report", () => {
 
 describe("preparing a report for upload", () => {
   test("hands an LCOV report over as it is", () => {
-    expect(prepareReport("coverage/lcov.info", "TN:\nSF:a.ts\nend_of_record\n")).toEqual({
+    expect(prepareReport("coverage/lcov.info", "TN:\nSF:a.ts\nend_of_record\n", [])).toEqual({
       ok: true,
       value: { kind: "as-is", path: "coverage/lcov.info" },
     })
   })
 
   test("hands a Cobertura report over as it is", () => {
-    expect(prepareReport("coverage/cobertura.xml", "<coverage/>")).toEqual({
+    expect(prepareReport("coverage/cobertura.xml", "<coverage/>", [])).toEqual({
       ok: true,
       value: { kind: "as-is", path: "coverage/cobertura.xml" },
     })
   })
 
-  test("converts a JaCoCo report to LCOV beside the original", () => {
-    const prepared = prepareReport("target/site/jacoco/jacoco.xml", JACOCO)
+  test("converts a JaCoCo report to LCOV beside the original, naming sources by their repository path", () => {
+    const prepared = prepareReport("target/site/jacoco/jacoco.xml", JACOCO, ["src/main/kotlin/a/A.kt"])
 
     expect(prepared).toEqual({
       ok: true,
@@ -93,22 +93,24 @@ describe("preparing a report for upload", () => {
         kind: "converted",
         source: "target/site/jacoco/jacoco.xml",
         path: "target/site/jacoco/jacoco.lcov",
-        lcov: "TN:\nSF:a/A.kt\nDA:1,1\nDA:2,0\nLF:2\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
+        lcov: "TN:\nSF:src/main/kotlin/a/A.kt\nDA:1,1\nDA:2,0\nLF:2\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
         lines: 2,
         coveredLines: 1,
+        sourceFiles: 1,
+        locatedFiles: 1,
       },
     })
   })
 
   test("refuses a file it cannot identify, naming it", () => {
-    expect(prepareReport("target/surefire-reports/TEST-a.xml", "<testsuite/>")).toEqual({
+    expect(prepareReport("target/surefire-reports/TEST-a.xml", "<testsuite/>", [])).toEqual({
       ok: false,
       error: "target/surefire-reports/TEST-a.xml: not an LCOV, Cobertura or JaCoCo XML report",
     })
   })
 
   test("refuses a JaCoCo report it cannot convert, naming it", () => {
-    expect(prepareReport("jacoco.xml", '<report name="app"></report>')).toEqual({
+    expect(prepareReport("jacoco.xml", '<report name="app"></report>', [])).toEqual({
       ok: false,
       error: "jacoco.xml: The JaCoCo report has no line counters to convert",
     })
@@ -116,10 +118,12 @@ describe("preparing a report for upload", () => {
 })
 
 describe("summarising a prepared report", () => {
-  test("reports the line coverage of a converted report", () => {
-    const prepared = prepareReport("jacoco.xml", JACOCO)
+  test("reports the line coverage of a converted report and how many sources were found", () => {
+    const prepared = prepareReport("jacoco.xml", JACOCO, [])
     if (!prepared.ok) throw new Error(prepared.error)
 
-    expect(summarize(prepared.value)).toBe("jacoco.xml: converted to jacoco.lcov, 1/2 lines covered (50.0%)")
+    expect(summarize(prepared.value)).toBe(
+      "jacoco.xml: converted to jacoco.lcov, 1/2 lines covered (50.0%), 0/1 source files found in the repository",
+    )
   })
 })

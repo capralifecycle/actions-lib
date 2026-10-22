@@ -21,6 +21,13 @@ export interface Lcov {
   readonly coveredLines: number
 }
 
+export interface Conversion extends Lcov {
+  /** Source files with line counters, each one record in the LCOV. */
+  readonly sourceFiles: number
+  /** How many of those were found in the repository and named by their path there. */
+  readonly locatedFiles: number
+}
+
 const TAG = /<(\/?)(package|sourcefile|line)\b([^>]*)>/g
 const ATTRIBUTE = /([\w-]+)="([^"]*)"/g
 
@@ -146,12 +153,48 @@ export function toLcov(files: readonly SourceFile[]): Lcov {
   }
 }
 
-export function jacocoToLcov(xml: string): Result<Lcov> {
-  const files = parseJacoco(xml)
-  if (!files.ok) return files
-  const lcov = toLcov(files.value)
+/**
+ * JaCoCo names a source file by its package path, such as `com/example/Foo.kt`,
+ * which the upload step cannot open from the repository root to check line
+ * numbers against. Each is renamed to the one repository file whose path ends
+ * with it; a path that matches no file, or several, is left as it is.
+ */
+export function locateSources(
+  files: readonly SourceFile[],
+  repositoryFiles: readonly string[],
+): SourceFile[] {
+  const byName = new Map<string, string[]>()
+  for (const file of repositoryFiles) {
+    const name = file.slice(file.lastIndexOf("/") + 1)
+    byName.set(name, [...(byName.get(name) ?? []), file])
+  }
+
+  return files.map((file) => {
+    const name = file.path.slice(file.path.lastIndexOf("/") + 1)
+    const matches = (byName.get(name) ?? []).filter(
+      (candidate) => candidate === file.path || candidate.endsWith(`/${file.path}`),
+    )
+    return matches.length === 1 ? { ...file, path: matches[0] as string } : file
+  })
+}
+
+export function jacocoToLcov(
+  xml: string,
+  repositoryFiles: readonly string[],
+): Result<Conversion> {
+  const parsed = parseJacoco(xml)
+  if (!parsed.ok) return parsed
+  const files = locateSources(parsed.value, repositoryFiles).filter(
+    (file) => file.lines.length > 0,
+  )
+  const lcov = toLcov(files)
   if (lcov.lines === 0) {
     return err("The JaCoCo report has no line counters to convert")
   }
-  return ok(lcov)
+  const known = new Set(repositoryFiles)
+  return ok({
+    ...lcov,
+    sourceFiles: files.length,
+    locatedFiles: files.filter((file) => known.has(file.path)).length,
+  })
 }

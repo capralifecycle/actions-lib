@@ -1,0 +1,53 @@
+name: "aikido-upload-coverage"
+description: |
+  description: "Upload test coverage reports to Aikido, converting JaCoCo reports to LCOV first"
+  local: true
+inputs:
+  file-paths:
+    description: |
+      Paths or glob patterns of the coverage reports, relative to the workspace and separated by newlines.
+
+      LCOV and Cobertura reports are uploaded as they are. JaCoCo XML reports are converted to LCOV
+      first and written beside the original with a '.lcov' extension, since Aikido does not read JaCoCo.
+
+      The job must grant 'id-token: write': the upload authenticates with the GitHub OIDC token, and
+      Aikido accepts it for any repository connected to the Aikido workspace.
+    required: true
+  region:
+    description: |
+      The Aikido region to upload to.
+
+      Allowed values: 'eu' | 'us' | 'au' | 'us-gov'
+    default: "eu"
+  fail-on-error:
+    description: |
+      Whether a report that cannot be found, converted or uploaded fails the job.
+
+      When set to 'false', the problem is reported as a warning and the job continues.
+    default: "false"
+outputs:
+  file-paths:
+    description: "The reports handed to Aikido, separated by commas, after any conversion"
+    value: ${{ steps.convert.outputs.file-paths }}
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: "24.22.1"
+
+    - name: convert coverage reports
+      id: convert
+      shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        INPUT_FILE_PATHS: ${{ inputs.file-paths }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: node "$GITHUB_ACTION_PATH/dist/index.mjs"
+
+    - name: upload coverage to Aikido
+      if: steps.convert.outputs.file-paths != ''
+      uses: AikidoSec/code-coverage-github-action@af64fbf145a1d80a532f18d7bb75daff398b7d00 # v2.1.0
+      with:
+        file-paths: ${{ steps.convert.outputs.file-paths }}
+        region: ${{ inputs.region }}
+        fail-on-error: ${{ inputs.fail-on-error }}

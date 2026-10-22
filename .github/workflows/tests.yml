@@ -529,6 +529,37 @@ jobs:
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
       ######################################################
       #
+      # test: aikido-upload-coverage
+      #
+      ######################################################
+      # Only cases that stop before the upload are run here, since a successful
+      # one would publish this repository's coverage to Aikido.
+      - uses: ./aikido-upload-coverage
+        name: act-aikido-upload-coverage-no-match-should-fail
+        id: act-aikido-upload-coverage-no-match-should-fail
+        continue-on-error: true
+        with:
+          file-paths: "does-not-exist/**/jacoco.xml"
+          fail-on-error: "true"
+      - name: assert-aikido-upload-coverage-no-match-should-fail
+        id: assert-aikido-upload-coverage-no-match-should-fail
+        env:
+          ASSERT_EXPECTED: "failure"
+          ASSERT_GOT: ${{ steps.act-aikido-upload-coverage-no-match-should-fail.outcome }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      - uses: ./aikido-upload-coverage
+        name: act-aikido-upload-coverage-no-match-should-warn
+        id: act-aikido-upload-coverage-no-match-should-warn
+        with:
+          file-paths: "does-not-exist/**/jacoco.xml"
+      - name: assert-aikido-upload-coverage-no-match-should-warn
+        id: assert-aikido-upload-coverage-no-match-should-warn
+        env:
+          ASSERT_EXPECTED: ""
+          ASSERT_GOT: ${{ steps.act-aikido-upload-coverage-no-match-should-warn.outputs.file-paths }}
+        run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      ######################################################
+      #
       # test: aikido-scan
       #
       ######################################################

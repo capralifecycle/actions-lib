@@ -44,14 +44,22 @@ function readInputs(): Inputs {
 /** Installed packages can ship their own coverage reports, which a `**` pattern would pick up. */
 const EXCLUDED_DIRECTORIES = new Set([".git", "node_modules"])
 
-function findReports(workspace: string, pattern: string): Result<string[]> {
-  const matches = globSync(pattern, {
+/** Build output holds copies and generated code, never the sources a report should point at. */
+const EXCLUDED_FROM_SOURCES = new Set([...EXCLUDED_DIRECTORIES, "build", "target"])
+
+const JVM_SOURCES = "**/*.{java,kt,groovy,scala}"
+
+const glob = (workspace: string, pattern: string, excluded: ReadonlySet<string>): string[] =>
+  globSync(pattern, {
     cwd: workspace,
     withFileTypes: true,
-    exclude: (entry) => entry.isDirectory() && EXCLUDED_DIRECTORIES.has(entry.name),
+    exclude: (entry) => entry.isDirectory() && excluded.has(entry.name),
   })
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(entry.parentPath, entry.name))
+
+function findReports(workspace: string, pattern: string): Result<string[]> {
+  const matches = glob(workspace, pattern, EXCLUDED_DIRECTORIES)
   if (matches.length === 0) return err(`No file matched '${pattern}'`)
 
   const files: string[] = []
@@ -73,6 +81,11 @@ function prepareAll(workspace: string, patterns: readonly string[]): Result<Prep
     for (const file of found.value) files.add(file)
   }
 
+  const repositoryFiles = glob(workspace, JVM_SOURCES, EXCLUDED_FROM_SOURCES).flatMap((file) => {
+    const relative = workspacePath(workspace, file)
+    return relative.ok ? [relative.value] : []
+  })
+
   const reports: PreparedReport[] = []
   for (const file of files) {
     let content: string
@@ -81,7 +94,7 @@ function prepareAll(workspace: string, patterns: readonly string[]): Result<Prep
     } catch (cause) {
       return err(`${file}: ${cause instanceof Error ? cause.message : String(cause)}`)
     }
-    const report = prepareReport(file, content)
+    const report = prepareReport(file, content, repositoryFiles)
     if (!report.ok) return report
     reports.push(report.value)
   }

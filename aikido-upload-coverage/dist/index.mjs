@@ -118,15 +118,33 @@ function toLcov(files) {
     coveredLines
   };
 }
-function jacocoToLcov(xml) {
-  const files = parseJacoco(xml);
-  if (!files.ok)
-    return files;
-  const lcov = toLcov(files.value);
+function locateSources(files, repositoryFiles) {
+  const byName = new Map;
+  for (const file of repositoryFiles) {
+    const name = file.slice(file.lastIndexOf("/") + 1);
+    byName.set(name, [...byName.get(name) ?? [], file]);
+  }
+  return files.map((file) => {
+    const name = file.path.slice(file.path.lastIndexOf("/") + 1);
+    const matches = (byName.get(name) ?? []).filter((candidate) => candidate === file.path || candidate.endsWith(`/${file.path}`));
+    return matches.length === 1 ? { ...file, path: matches[0] } : file;
+  });
+}
+function jacocoToLcov(xml, repositoryFiles) {
+  const parsed = parseJacoco(xml);
+  if (!parsed.ok)
+    return parsed;
+  const files = locateSources(parsed.value, repositoryFiles).filter((file) => file.lines.length > 0);
+  const lcov = toLcov(files);
   if (lcov.lines === 0) {
     return err("The JaCoCo report has no line counters to convert");
   }
-  return ok(lcov);
+  const known = new Set(repositoryFiles);
+  return ok({
+    ...lcov,
+    sourceFiles: files.length,
+    locatedFiles: files.filter((file) => known.has(file.path)).length
+  });
 }
 
 // aikido-upload-coverage/src/prepare.ts
@@ -152,14 +170,14 @@ function workspacePath(workspace, file) {
   return ok(relative.split(path.sep).join("/"));
 }
 var lcovPathFor = (source) => /\.xml$/i.test(source) ? source.replace(/\.xml$/i, ".lcov") : `${source}.lcov`;
-function prepareReport(file, content) {
+function prepareReport(file, content, repositoryFiles) {
   const format = detectFormat(content);
   switch (format) {
     case "lcov":
     case "cobertura":
       return ok({ kind: "as-is", path: file });
     case "jacoco": {
-      const lcov = jacocoToLcov(content);
+      const lcov = jacocoToLcov(content, repositoryFiles);
       if (!lcov.ok)
         return err(`${file}: ${lcov.error}`);
       return ok({
@@ -168,7 +186,9 @@ function prepareReport(file, content) {
         path: lcovPathFor(file),
         lcov: lcov.value.text,
         lines: lcov.value.lines,
-        coveredLines: lcov.value.coveredLines
+        coveredLines: lcov.value.coveredLines,
+        sourceFiles: lcov.value.sourceFiles,
+        locatedFiles: lcov.value.locatedFiles
       });
     }
     case null:
@@ -179,7 +199,7 @@ function summarize(report) {
   if (report.kind === "as-is")
     return `${report.path}: no conversion needed`;
   const percentage = (100 * report.coveredLines / report.lines).toFixed(1);
-  return `${report.source}: converted to ${report.path}, ` + `${report.coveredLines}/${report.lines} lines covered (${percentage}%)`;
+  return `${report.source}: converted to ${report.path}, ` + `${report.coveredLines}/${report.lines} lines covered (${percentage}%), ` + `${report.locatedFiles}/${report.sourceFiles} source files found in the repository`;
 }
 
 // aikido-upload-coverage/src/main.ts
@@ -206,12 +226,15 @@ function readInputs() {
   }
 }
 var EXCLUDED_DIRECTORIES = new Set([".git", "node_modules"]);
+var EXCLUDED_FROM_SOURCES = new Set([...EXCLUDED_DIRECTORIES, "build", "target"]);
+var JVM_SOURCES = "**/*.{java,kt,groovy,scala}";
+var glob = (workspace, pattern, excluded) => globSync(pattern, {
+  cwd: workspace,
+  withFileTypes: true,
+  exclude: (entry) => entry.isDirectory() && excluded.has(entry.name)
+}).filter((entry) => entry.isFile()).map((entry) => path2.join(entry.parentPath, entry.name));
 function findReports(workspace, pattern) {
-  const matches = globSync(pattern, {
-    cwd: workspace,
-    withFileTypes: true,
-    exclude: (entry) => entry.isDirectory() && EXCLUDED_DIRECTORIES.has(entry.name)
-  }).filter((entry) => entry.isFile()).map((entry) => path2.join(entry.parentPath, entry.name));
+  const matches = glob(workspace, pattern, EXCLUDED_DIRECTORIES);
   if (matches.length === 0)
     return err(`No file matched '${pattern}'`);
   const files = [];
@@ -234,6 +257,10 @@ function prepareAll(workspace, patterns) {
     for (const file of found.value)
       files.add(file);
   }
+  const repositoryFiles = glob(workspace, JVM_SOURCES, EXCLUDED_FROM_SOURCES).flatMap((file) => {
+    const relative = workspacePath(workspace, file);
+    return relative.ok ? [relative.value] : [];
+  });
   const reports = [];
   for (const file of files) {
     let content;
@@ -242,7 +269,7 @@ function prepareAll(workspace, patterns) {
     } catch (cause) {
       return err(`${file}: ${cause instanceof Error ? cause.message : String(cause)}`);
     }
-    const report = prepareReport(file, content);
+    const report = prepareReport(file, content, repositoryFiles);
     if (!report.ok)
       return report;
     reports.push(report.value);

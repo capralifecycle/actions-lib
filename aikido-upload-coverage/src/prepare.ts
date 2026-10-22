@@ -41,6 +41,8 @@ export type PreparedReport =
       readonly lcov: string
       readonly lines: number
       readonly coveredLines: number
+      readonly sourceFiles: number
+      readonly locatedFiles: number
     }
 
 /**
@@ -69,14 +71,22 @@ export function workspacePath(workspace: string, file: string): Result<string> {
 export const lcovPathFor = (source: string): string =>
   /\.xml$/i.test(source) ? source.replace(/\.xml$/i, ".lcov") : `${source}.lcov`
 
-export function prepareReport(file: string, content: string): Result<PreparedReport> {
+/**
+ * `repositoryFiles` lists the workspace's source files, which a JaCoCo report's
+ * package-relative paths are resolved against.
+ */
+export function prepareReport(
+  file: string,
+  content: string,
+  repositoryFiles: readonly string[],
+): Result<PreparedReport> {
   const format = detectFormat(content)
   switch (format) {
     case "lcov":
     case "cobertura":
       return ok({ kind: "as-is", path: file })
     case "jacoco": {
-      const lcov = jacocoToLcov(content)
+      const lcov = jacocoToLcov(content, repositoryFiles)
       if (!lcov.ok) return err(`${file}: ${lcov.error}`)
       return ok({
         kind: "converted",
@@ -85,6 +95,8 @@ export function prepareReport(file: string, content: string): Result<PreparedRep
         lcov: lcov.value.text,
         lines: lcov.value.lines,
         coveredLines: lcov.value.coveredLines,
+        sourceFiles: lcov.value.sourceFiles,
+        locatedFiles: lcov.value.locatedFiles,
       })
     }
     case null:
@@ -97,6 +109,7 @@ export function summarize(report: PreparedReport): string {
   const percentage = ((100 * report.coveredLines) / report.lines).toFixed(1)
   return (
     `${report.source}: converted to ${report.path}, ` +
-    `${report.coveredLines}/${report.lines} lines covered (${percentage}%)`
+    `${report.coveredLines}/${report.lines} lines covered (${percentage}%), ` +
+    `${report.locatedFiles}/${report.sourceFiles} source files found in the repository`
   )
 }

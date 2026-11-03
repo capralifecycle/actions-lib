@@ -3,3 +3,6 @@ exact = true
 
 # Same minimum release age the org Renovate preset applies to automated bumps.
 minimumReleaseAge = 259200
+
+# Test files are not production code and would inflate the report.
+coverageSkipTestFiles = true

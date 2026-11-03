@@ -65,7 +65,7 @@ dist:
 
 .PHONY: test
 test:
-	bun test
+	bun test --coverage --coverage-reporter=text --coverage-reporter=lcov
 
 .PHONY: typecheck
 typecheck:

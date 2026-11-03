@@ -20,6 +20,9 @@ jobs:
       deployments: write
   verify:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +37,11 @@ jobs:
 
       - name: ci
         run: make ci
+
+      - uses: ./aikido-upload-coverage
+        if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        with:
+          file-paths: "coverage/lcov.info"
 
   conditional-release:
     needs:

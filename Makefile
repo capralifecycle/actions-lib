@@ -53,7 +53,7 @@ lint-secrets:
 
 .PHONY: lint-workflows
 lint-workflows:
-	actionlint --oneline
+	jactionlint --oneline
 
 .PHONY: lint-commit-msg
 lint-commit-msg:

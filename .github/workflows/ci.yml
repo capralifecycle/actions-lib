@@ -8,7 +8,9 @@ defaults:
   run:
     shell: bash
 
-concurrency: ci-${{ github.ref }}-${{ github.workflow }}
+concurrency: 
+  group: ci-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   test:

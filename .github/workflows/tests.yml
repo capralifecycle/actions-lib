@@ -3,6 +3,10 @@ name: tests
 on:
   workflow_call:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test-actions:
     runs-on: ubuntu-24.04

@@ -66,6 +66,8 @@ runs:
 
     - name: install Aikido CI API client
       shell: bash --noprofile --norc -euo pipefail {0}
+      # The package ships an npm-shrinkwrap.json, so pinning its version also locks its dependency tree.
+      # jactionlint ignore=adhoc-packages
       run: npm install --global @aikidosec/ci-api-client@1.0.25
 
     - name: run Aikido scan

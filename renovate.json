@@ -10,5 +10,10 @@
     "managerFilePatterns": ["/^aikido-scan/action\\.yml$/"],
     "matchStrings": ["npm install --global (?<depName>@[^@\\s]+/[^@\\s]+)@(?<currentValue>\\S+)"],
     "datasourceTemplate": "npm"
+  }, {
+    "customType": "regex",
+    "managerFilePatterns": ["/^\\.github/workflows/tests\\.yml$/"],
+    "matchStrings": ["(?<depName>floci/floci):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"],
+    "datasourceTemplate": "docker"
   }]
 }

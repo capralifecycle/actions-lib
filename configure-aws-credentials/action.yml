@@ -77,7 +77,12 @@ runs:
       shell: bash --noprofile --norc -euo pipefail {0}
       env:
         INPUT_AWS_REGION: ${{ inputs.aws-region }}
-      run: echo "AWS_REGION=$INPUT_AWS_REGION" >> "$GITHUB_ENV"
+      run: |
+        if [[ ! "$INPUT_AWS_REGION" =~ ^[a-z0-9-]+$ ]]; then
+          echo "Parameter 'aws-region' is not a valid AWS region: $INPUT_AWS_REGION" >&2
+          exit 1
+        fi
+        echo "AWS_REGION=$INPUT_AWS_REGION" >> "$GITHUB_ENV"
 
     - name: authenticate to ecr
       if: ${{ inputs.authenticate-to-ecr == 'true' }}

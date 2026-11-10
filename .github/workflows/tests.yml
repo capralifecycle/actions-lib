@@ -9,7 +9,7 @@ defaults:
 
 jobs:
   test-actions:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       # Points both the AWS CLI and the actions' SDK clients at Floci.

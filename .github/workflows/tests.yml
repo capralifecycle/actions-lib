@@ -3,11 +3,16 @@ name: tests
 on:
   workflow_call:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test-actions:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     env:
-      # Points both the AWS CLI and the actions' SDK clients at LocalStack.
+      # Points both the AWS CLI and the actions' SDK clients at Floci.
       AWS_ENDPOINT_URL: "http://localhost:4566"
     permissions:
       actions: read
@@ -98,34 +103,20 @@ jobs:
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
       ######################################################
       #
-      # configure localstack
+      # configure floci
       #
       ######################################################
 
-      - name: setup-localstack
+      - name: setup-floci
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
-          docker run -d --name localstack-main \
-          -p 4566:4566 \
-          -p 4571:4571 \
-          -e SERVICES=sts,s3,iam,ssm \
-          -e DEBUG=1 \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          localstack/localstack:4.14.0
+          docker run -d --name floci -p 4566:4566 \
+            floci/floci:2.4.0@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c
 
-          for i in {1..60}; do
-            if docker logs localstack-main 2>&1 | grep -q "Ready."; then
-              echo "LocalStack is ready"
-              break
-            fi
-            echo "⏳ Waiting ($i)..."
-            sleep 1
-          done
-
-          if ! docker logs localstack-main 2>&1 | grep -q "Ready."; then
-            echo "LocalStack failed to start"
-            docker logs localstack-main || true
+          if ! curl -fsS --retry 60 --retry-delay 1 --retry-all-errors -o /dev/null http://localhost:4566/_floci/health; then
+            echo "Floci failed to start"
+            docker logs floci || true
             exit 1
           fi
 
@@ -138,7 +129,7 @@ jobs:
           region=eu-west-1
           EOF
           aws sts get-caller-identity
-      - name: create-aws-resources-for-localstack
+      - name: create-aws-resources-for-floci
         env:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
           ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
@@ -146,8 +137,6 @@ jobs:
           LIMITED_ROLE_NAME: ${{ steps.act-parse-config.outputs.limitedRoleName }}
         run: |
           aws s3 mb "s3://$ARTIFACT_BUCKET"
-          # NOTE: Not supported on free plan
-          # aws ecr create-repository --repository-name "actions-lib-artifacts"
           aws iam create-open-id-connect-provider \
             --url "https://token.actions.githubusercontent.com" \
             --client-id-list "sts.amazonaws.com" \
@@ -183,11 +172,10 @@ jobs:
         with:
           aws-account-id: ${{ steps.act-parse-config.outputs.accountId }}
           aws-iam-role-name: ${{ steps.act-parse-config.outputs.roleName }}
-          # NOTE: Unsupported API call in localstack
-          # authenticate-to-ecr: true
-      # LocalStack cannot serve the ECR call, so the ECR path is not exercised.
-      # Asserting the outputs are populated at least catches the wrapped action
-      # no longer returning the credentials that path depends on.
+      # The ECR path logs docker in to the real amazonaws.com registry host,
+      # which no local emulator serves, so it is not exercised. Asserting the
+      # outputs are populated at least catches the wrapped action no longer
+      # returning the credentials that path depends on.
       - name: assert-configure-aws-credentials-has-outputs
         env:
           ASSERT_GOT_ACCESS_KEY_ID: ${{ steps.act-configure-aws-credentials.outputs.aws-access-key-id }}
@@ -443,7 +431,7 @@ jobs:
           ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
         run: |
           aws s3 rm "s3://$ARTIFACT_BUCKET" --recursive
-          aws ssm get-parameters-by-path --path "/" --recursive --query "Parameters[*].[Name]" --output text \
+          aws ssm get-parameters-by-path --path "/liflig-cdk/" --recursive --query "Parameters[*].[Name]" --output text \
             | xargs -I "{}" aws ssm delete-parameter --name "{}"
       - uses: ./trigger-deployment-pipeline
         name: act-trigger-deployment-pipeline-artifact

@@ -1,0 +1,2 @@
+# Bundles built from each action's src/ by `make dist`; collapsed in GitHub diffs.
+*/dist/** linguist-generated=true

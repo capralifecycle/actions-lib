@@ -12037,11 +12037,17 @@ More information can be found at: https://a.co/c895JFp`);
           "me-south-1": {
             description: "Middle East (Bahrain)"
           },
+          "me-west-1": {
+            description: "Middle East (Saudi Arabia)"
+          },
           "mx-central-1": {
             description: "Mexico (Central)"
           },
           "sa-east-1": {
             description: "South America (Sao Paulo)"
+          },
+          "sa-west-1": {
+            description: "South America (Chile)"
           },
           "us-east-1": {
             description: "US East (N. Virginia)"
@@ -19213,6 +19219,9 @@ var require_httpAuthSchemes = __commonJS(function(exports) {
       return currentSystemClockOffset;
     }
     const serverTime = Date.parse(clockTime);
+    if (Number.isNaN(serverTime)) {
+      return currentSystemClockOffset;
+    }
     const timeResponseReceived = Date.now();
     if (timeRequestSent !== undefined && timeResponseReceived - timeRequestSent > 900000) {
       return currentSystemClockOffset;
@@ -21031,7 +21040,7 @@ var require_sso_oidc = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.0";
+  var version = "3.998.1";
   var packageInfo = {
     version
   };
@@ -21962,7 +21971,7 @@ var require_sso = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.0";
+  var version = "3.998.1";
   var packageInfo = {
     version
   };
@@ -22930,7 +22939,7 @@ var require_sts = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.0";
+  var version = "3.998.1";
   var packageInfo = {
     version
   };
@@ -23711,7 +23720,7 @@ var require_signin = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.0";
+  var version = "3.998.1";
   var packageInfo = {
     version
   };
@@ -34026,7 +34035,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 
   class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
   }
-  var version = "3.1163.0";
+  var version = "3.1164.0";
   var packageInfo = {
     version
   };

@@ -105,38 +105,70 @@ describe("a hyphenated alphanumeric tag", () => {
   })
 })
 
-describe("the length budget", () => {
-  const randomBranch = (length: number): string =>
-    Array.from(
-      { length },
-      () => "abcdefghijklmnopqrstuvwxyz0123456789-_"[Math.floor(Math.random() * 38)],
-    ).join("")
+describe("the length budget of a hyphenated tag", () => {
+  // Every combination around the point where the head alone fills the budget,
+  // for heads of several lengths: short enough to run exhaustively, and wide
+  // enough that each boundary is crossed from both sides.
+  const cases = ["", "app", "a-much-longer-prefix"].flatMap((prefix) =>
+    [false, true].flatMap((addAutomaticPrefix) =>
+      Array.from({ length: 31 }, (_, branchLength) =>
+        Array.from({ length: 90 }, (_, index) => ({
+          prefix,
+          addAutomaticPrefix,
+          branch: "b".repeat(branchLength),
+          maxLength: index + 1,
+        })),
+      ).flat(),
+    ),
+  )
 
-  test("is never exceeded by a generated tag", () => {
-    for (let i = 0; i < 500; i++) {
-      const maxLength = 42 + Math.floor(Math.random() * 200)
+  /** The tag's fixed part, which everything but the branch name contributes. */
+  const headOf = (prefix: string, addAutomaticPrefix: boolean): string =>
+    value(
+      generateTag(
+        request({ prefix, addAutomaticPrefix, maxLength: 1000 }),
+        context({ branch: "" }),
+      ),
+    )
+
+  test("is filled with as much of the branch name as fits, and never exceeded", () => {
+    for (const { prefix, addAutomaticPrefix, branch, maxLength } of cases) {
       const result = generateTag(
-        request({
-          maxLength,
-          prefix: randomBranch(Math.floor(Math.random() * 12)),
-          addAutomaticPrefix: Math.random() < 0.5,
-        }),
-        context({ branch: randomBranch(Math.floor(Math.random() * 120)) }),
+        request({ prefix, addAutomaticPrefix, maxLength }),
+        context({ branch }),
       )
-      if (result.ok) expect(result.value.length).toBeLessThanOrEqual(maxLength)
+      if (!result.ok) continue
+      const head = headOf(prefix, addAutomaticPrefix)
+      const fits = Math.min(branch.length, maxLength - head.length)
+      expect(result.value).toBe(`${head}${branch.slice(0, fits)}`)
+      expect(result.value.length).toBeLessThanOrEqual(maxLength)
     }
   })
 
-  test("rejects rather than emitting a tag with a uselessly short branch fragment", () => {
-    const head = "20260909-125117z-1658821493-abcd1234-"
+  test("is refused only when not even ten characters of the branch name fit", () => {
+    for (const { prefix, addAutomaticPrefix, branch, maxLength } of cases) {
+      const result = generateTag(
+        request({ prefix, addAutomaticPrefix, maxLength }),
+        context({ branch }),
+      )
+      const shortest = headOf(prefix, addAutomaticPrefix).length + Math.min(branch.length, 10)
+      expect(result.ok).toBe(shortest <= maxLength)
+    }
+  })
+})
 
-    for (let i = 0; i < 500; i++) {
-      const maxLength = 20 + Math.floor(Math.random() * 40)
-      const branch = randomBranch(Math.floor(Math.random() * 40))
-      const result = generateTag(request({ maxLength }), context({ branch }))
-      if (result.ok) {
-        const emitted = result.value.slice(head.length)
-        expect(emitted.length === branch.length || emitted.length >= 10).toBe(true)
+describe("the length budget of a punctuated tag", () => {
+  test("is met exactly or refused, never exceeded", () => {
+    for (const prefix of ["", "app"]) {
+      const full = value(
+        generateTag(request({ tagType: "punctuated-timestamp-tag", prefix }), context()),
+      )
+      for (let maxLength = 1; maxLength <= full.length + 1; maxLength++) {
+        const result = generateTag(
+          request({ tagType: "punctuated-timestamp-tag", prefix, maxLength }),
+          context(),
+        )
+        expect(result.ok).toBe(full.length <= maxLength)
       }
     }
   })

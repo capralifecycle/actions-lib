@@ -1,6 +1,5 @@
 // parse-config/src/main.ts
 import { existsSync, readFileSync } from "node:fs";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 import { appendFileSync } from "node:fs";
@@ -11,15 +10,58 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
-var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
-`).join("");
+function renderOutput({ name, value }) {
+  if (!/[\r\n]/.test(value))
+    return `${name}=${value}
+`;
+  let delimiter = "EOF";
+  while (value.includes(delimiter))
+    delimiter += "_";
+  return `${name}<<${delimiter}
+${value}
+${delimiter}
+`;
+}
+var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
 }
 
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
 // lib/result.ts
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
+}
 
 // parse-config/src/config.ts
 var SCHEMA_VERSIONS = {
@@ -103,25 +145,7 @@ function parseConfig(serialized) {
 
 // parse-config/src/main.ts
 var inActions = runningInActions();
-var sourceFromEnvironment = () => ({
-  config: process.env["INPUT_CONFIG"] ?? "",
-  configFile: process.env["INPUT_CONFIG-FILE"] ?? ""
-});
-function sourceFromArgv() {
-  let values;
-  try {
-    ({ values } = parseArgs({
-      options: {
-        config: { type: "string", default: "" },
-        "config-file": { type: "string", default: "" }
-      }
-    }));
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-  return { config: values.config, configFile: values["config-file"] };
-}
-function read({ config, configFile }) {
+function read(config, configFile) {
   if (config !== "")
     return config;
   if (configFile === "") {
@@ -134,8 +158,8 @@ function read({ config, configFile }) {
 `);
   return readFileSync(configFile, "utf8");
 }
-var source = inActions ? sourceFromEnvironment() : sourceFromArgv();
-var outputs = parseConfig(read(source));
+var inputs = readInputs(["config", "config-file"]);
+var outputs = parseConfig(read(inputs.config, inputs["config-file"]));
 if (!outputs.ok)
   fail(outputs.error);
 if (inActions) {

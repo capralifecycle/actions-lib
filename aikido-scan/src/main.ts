@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process"
-import { parseArgs } from "node:util"
 
 import {
   fail,
@@ -7,19 +6,19 @@ import {
   runningInActions,
   writeOutputs,
 } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { buildBody, parseTarget, post } from "../../lib/slack.ts"
 import {
   CONTEXT_NAMES,
   type Inputs,
   type RunContext,
   buildScanArgs,
-  collectInputs,
   exitCodeFor,
   parseInputs,
   parseScanLog,
   runContextFromArgs,
   runContextFromEnvironment,
-  scanFailed,
+  scanOutcome,
   shouldNotify,
 } from "./scan.ts"
 import { type SlackPayload, buildSlackPayload } from "./slack.ts"
@@ -42,25 +41,6 @@ const INPUT_NAMES = [
 ] as const
 
 const inActions = runningInActions()
-
-const rawFromEnvironment = (): Record<string, string> =>
-  collectInputs(process.env, INPUT_NAMES)
-
-function valuesFromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        [...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
-          name,
-          { type: "string", default: "" },
-        ]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
 
 interface ScanResult {
   readonly exitCode: number
@@ -101,14 +81,13 @@ async function postToSlack(
   if (!sent.ok) fail(sent.error)
 }
 
-const argv = inActions ? undefined : valuesFromArgv()
-const raw = argv ?? rawFromEnvironment()
-const context: RunContext = argv
-  ? runContextFromArgs(argv)
-  : runContextFromEnvironment(process.env)
+const raw = readInputs(INPUT_NAMES, CONTEXT_NAMES)
+const context: RunContext = inActions
+  ? runContextFromEnvironment(process.env)
+  : runContextFromArgs(raw)
 
-mask(raw["apikey"] ?? "")
-mask(raw["bot-token"] ?? "")
+mask(raw["apikey"])
+mask(raw["bot-token"])
 
 const inputs = parseInputs(raw)
 if (!inputs.ok) fail(inputs.error)
@@ -119,12 +98,13 @@ process.stdout.write(
 )
 
 const { exitCode, log } = await runScan(args)
+const outcome = scanOutcome(exitCode)
 const findings = parseScanLog(log)
 
 let slackNotified = false
 let payload: SlackPayload | undefined
 
-if (shouldNotify(exitCode, inputs.value)) {
+if (shouldNotify(outcome, inputs.value)) {
   payload = buildSlackPayload(
     inputs.value.scan.repository,
     inputs.value.scan.commitSha,
@@ -150,18 +130,25 @@ if (inActions) {
   writeOutputs(outputs)
 }
 
-if (!scanFailed(exitCode)) {
-  process.stdout.write("Aikido scan found no new issues\n")
-  process.exit(0)
+switch (outcome) {
+  case "clean":
+    process.stdout.write("Aikido scan found no new issues\n")
+    break
+  case "findings":
+    process.stdout.write(
+      `Aikido scan found ${findings.issues} issue(s)` +
+        `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}\n`,
+    )
+    if (!inputs.value.failsOnAnyFinding) {
+      process.stdout.write(
+        "'fails-on-any-finding' is disabled, so the action will not fail\n",
+      )
+    }
+    break
+  case "error":
+    process.stderr.write(
+      `'${CLIENT_COMMAND}' failed with exit code ${exitCode} before the scan completed\n`,
+    )
+    break
 }
-
-process.stdout.write(
-  `Aikido scan found ${findings.issues} issue(s) (exit code ${exitCode})` +
-    `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}\n`,
-)
-if (!inputs.value.failsOnAnyFinding) {
-  process.stdout.write(
-    "'fails-on-any-finding' is disabled, so the action will not fail\n",
-  )
-}
-process.exit(exitCodeFor(exitCode, inputs.value.failsOnAnyFinding))
+process.exit(exitCodeFor(outcome, exitCode, inputs.value.failsOnAnyFinding))

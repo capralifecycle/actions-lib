@@ -64204,7 +64204,6 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 // upload-s3-artifact/src/main.ts
 import { readFileSync as readFileSync2, statSync as statSync3 } from "node:fs";
 import { basename } from "node:path";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 import { appendFileSync } from "node:fs";
@@ -64215,10 +64214,57 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
-var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
-`).join("");
+function renderOutput({ name, value }) {
+  if (!/[\r\n]/.test(value))
+    return `${name}=${value}
+`;
+  let delimiter = "EOF";
+  while (value.includes(delimiter))
+    delimiter += "_";
+  return `${name}<<${delimiter}
+${value}
+${delimiter}
+`;
+}
+var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
+}
+
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
+// lib/result.ts
+var ok = (value) => ({ ok: true, value });
+var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
 }
 
 // lib/archive.ts
@@ -64351,11 +64397,11 @@ var ec = [
   "stream finishing",
   "invalid zip data"
 ];
-var err = function(ind, msg, nt) {
+var err2 = function(ind, msg, nt) {
   var e = new Error(msg || ec[ind]);
   e.code = ind;
   if (Error.captureStackTrace)
-    Error.captureStackTrace(e, err);
+    Error.captureStackTrace(e, err2);
   if (!nt)
     throw e;
   return e;
@@ -64773,7 +64819,7 @@ var exfl = function(ex) {
     for (var k in ex) {
       var l = ex[k].length;
       if (l > 65535)
-        err(9);
+        err2(9);
       le += l + 4;
     }
   }
@@ -64790,7 +64836,7 @@ var wzh = function(d, b, f, fn, u, c, ce, co) {
   d[b++] = f.compression & 255, d[b++] = f.compression >> 8;
   var dt = new Date(f.mtime == null ? Date.now() : f.mtime), y = dt.getFullYear() - 1980;
   if (y < 0 || y > 119)
-    err(10);
+    err2(10);
   wbytes(d, b, y << 25 | dt.getMonth() + 1 << 21 | dt.getDate() << 16 | dt.getHours() << 11 | dt.getMinutes() << 5 | dt.getSeconds() >> 1), b += 4;
   if (c != -1) {
     wbytes(d, b, f.crc);
@@ -64840,7 +64886,7 @@ function zipSync(data, opts) {
     var com = p.comment, m = com && strToU8(com), ms = m && m.length;
     var exl = exfl(p.extra);
     if (s > 65535)
-      err(11);
+      err2(11);
     var d = compression ? deflateSync(file, p) : file, l = d.length;
     var c = crc();
     c.p(file);
@@ -64869,10 +64915,6 @@ function zipSync(data, opts) {
   return out;
 }
 
-// lib/result.ts
-var ok = (value) => ({ ok: true, value });
-var err2 = (error) => ({ ok: false, error });
-
 // lib/archive.ts
 var ZIP_OS_UNIX = 3;
 var MAX_ENTRIES = 65535;
@@ -64881,10 +64923,10 @@ var modeAttributes = (mode) => (mode & 65535) << 16;
 var toEntryName = (path) => path.split(sep).join("/");
 function collect(root, starts) {
   const entries = [];
-  const seen = new Set;
-  const pending = [...starts].reverse();
+  const noAncestors = new Set;
+  const pending = starts.map((path) => ({ path, ancestors: noAncestors })).reverse();
   while (pending.length > 0) {
-    const path = pending.pop();
+    const { path, ancestors } = pending.pop();
     const stats = statSync(path);
     if (!stats.isDirectory()) {
       entries.push({
@@ -64895,9 +64937,9 @@ function collect(root, starts) {
       continue;
     }
     const real = realpathSync(path);
-    if (seen.has(real))
+    if (ancestors.has(real))
       continue;
-    seen.add(real);
+    const within = new Set(ancestors).add(real);
     if (path !== root) {
       entries.push({
         name: `${toEntryName(relative(root, path))}/`,
@@ -64906,8 +64948,9 @@ function collect(root, starts) {
       });
     }
     const children = readdirSync(path).sort();
-    for (const child of children.reverse())
-      pending.push(join(path, child));
+    for (const child of children.reverse()) {
+      pending.push({ path: join(path, child), ancestors: within });
+    }
   }
   return entries;
 }
@@ -64920,17 +64963,17 @@ function archive(root, starts) {
   try {
     entries = collect(root, starts);
   } catch (cause) {
-    return err2(`Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`);
+    return err(`Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`);
   }
   if (entries.length === 0)
-    return err2(`Nothing to archive in '${directory}'`);
+    return err(`Nothing to archive in '${directory}'`);
   if (entries.length > MAX_ENTRIES) {
-    return err2(`'${directory}' holds ${entries.length} entries, more than the ${MAX_ENTRIES} a zip can address without Zip64`);
+    return err(`'${directory}' holds ${entries.length} entries, more than the ${MAX_ENTRIES} a zip can address without Zip64`);
   }
   const total = entries.reduce((sum, entry) => sum + entry.content.byteLength, 0);
   const tooLarge = entries.find((entry) => entry.content.byteLength > MAX_BYTES);
   if (tooLarge !== undefined || total > MAX_BYTES) {
-    return err2(`'${directory}' is too large to archive without Zip64 (limit ${MAX_BYTES} bytes per entry and in total)`);
+    return err(`'${directory}' is too large to archive without Zip64 (limit ${MAX_BYTES} bytes per entry and in total)`);
   }
   return ok(zipSync(Object.fromEntries(entries.map((entry) => [
     entry.name,
@@ -65479,26 +65522,9 @@ var INPUT_NAMES = [
   "target-path"
 ];
 var inActions = runningInActions();
-var fromEnvironment = () => Object.fromEntries(INPUT_NAMES.map((name) => {
-  const upper = name.toUpperCase();
-  return [
-    name,
-    process.env[`INPUT_${upper}`] ?? process.env[`INPUT_${upper.replace(/-/g, "_")}`] ?? ""
-  ];
-}));
-function fromArgv() {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]))
-    });
-    return values;
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-}
-var inputs = inActions ? fromEnvironment() : fromArgv();
-var bucket = inputs["aws-s3-bucket-name"] ?? "";
-var targetPath = inputs["target-path"] ?? "";
+var inputs = readInputs(INPUT_NAMES);
+var bucket = inputs["aws-s3-bucket-name"];
+var targetPath = inputs["target-path"];
 if (bucket === "")
   fail("Parameter 'aws-s3-bucket-name' is empty");
 if (targetPath === "")
@@ -65524,8 +65550,8 @@ function read(path) {
 }
 var { content, filename } = read(targetPath);
 var key = s3Key({
-  explicitKey: inputs["aws-s3-key"] ?? "",
-  prefix: inputs["aws-s3-key-prefix"] ?? "",
+  explicitKey: inputs["aws-s3-key"],
+  prefix: inputs["aws-s3-key-prefix"],
   checksum: sha256(content),
   extension: extensionOf(filename)
 });

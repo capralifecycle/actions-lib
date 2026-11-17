@@ -34,8 +34,13 @@ interface Entry {
 
 /**
  * Walks the tree under each starting path the way `zip -r` does: symlinks are
- * followed and the file they point at is stored, and every directory is kept
- * as an entry of its own.
+ * followed and what they point at is stored under the link's own name, and
+ * every directory is kept as an entry of its own. A directory reached through
+ * two paths is stored under both.
+ *
+ * The one departure is a symlink back to a directory the walk is already
+ * inside, which `zip -r` follows until the path grows too long to open. Here
+ * it is skipped, since every level it would add repeats the one above.
  *
  * Iterative rather than recursive, so the depth of the tree cannot exhaust the
  * call stack. Children are visited in sorted order, so the same tree always
@@ -43,13 +48,13 @@ interface Entry {
  */
 function collect(root: string, starts: readonly string[]): Entry[] {
   const entries: Entry[] = []
-  // Directories are reached through symlinks as well, so a link pointing at an
-  // ancestor would otherwise be walked forever.
-  const seen = new Set<string>()
-  const pending = [...starts].reverse()
+  const noAncestors: ReadonlySet<string> = new Set()
+  const pending: { path: string; ancestors: ReadonlySet<string> }[] = starts
+    .map((path) => ({ path, ancestors: noAncestors }))
+    .reverse()
 
   while (pending.length > 0) {
-    const path = pending.pop() as string
+    const { path, ancestors } = pending.pop() as (typeof pending)[number]
     const stats = statSync(path)
 
     if (!stats.isDirectory()) {
@@ -62,8 +67,8 @@ function collect(root: string, starts: readonly string[]): Entry[] {
     }
 
     const real = realpathSync(path)
-    if (seen.has(real)) continue
-    seen.add(real)
+    if (ancestors.has(real)) continue
+    const within = new Set(ancestors).add(real)
 
     // `zip -r` records every directory it visits, not only empty ones. The
     // entry carries the directory's own mode, which an extractor otherwise
@@ -76,7 +81,9 @@ function collect(root: string, starts: readonly string[]): Entry[] {
       })
     }
     const children = readdirSync(path).sort()
-    for (const child of children.reverse()) pending.push(join(path, child))
+    for (const child of children.reverse()) {
+      pending.push({ path: join(path, child), ancestors: within })
+    }
   }
   return entries
 }

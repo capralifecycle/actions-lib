@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { hostname, userInfo } from "node:os"
-import { parseArgs } from "node:util"
 
 import { fail, requireEnv, runningInActions } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { putObject, putParameter } from "../../lib/aws.ts"
 import {
   ARTIFACT_PARAMETER_NAMESPACE,
@@ -30,32 +30,6 @@ const INPUT_NAMES = [
 ] as const
 
 const inActions = runningInActions()
-
-const fromEnvironment = (): Record<string, string> =>
-  Object.fromEntries(
-    INPUT_NAMES.map((name) => {
-      const upper = name.toUpperCase()
-      return [
-        name,
-        process.env[`INPUT_${upper}`] ??
-          process.env[`INPUT_${upper.replace(/-/g, "_")}`] ??
-          "",
-      ]
-    }),
-  )
-
-function fromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
 
 const git = (...args: string[]): string =>
   execFileSync("git", args, { encoding: "utf8" }).trim()
@@ -131,16 +105,16 @@ function contextFromGit(): TriggerContext {
   }
 }
 
-const raw = inActions ? fromEnvironment() : fromArgv()
+const raw = readInputs(INPUT_NAMES)
 
 const parsed = parseInputs(
   {
-    bucket: raw["aws-s3-bucket-name"] ?? "",
-    pipelines: raw["pipelines"] ?? "",
-    triggerType: raw["trigger-type"] ?? "",
-    cdkSourceMetadataFile: raw["cdk-source-metadata-file"] ?? "",
-    cloudAssemblyMetadataFile: raw["cloud-assembly-metadata-file"] ?? "",
-    artifactParameters: raw["artifact-parameters"] ?? "",
+    bucket: raw["aws-s3-bucket-name"],
+    pipelines: raw["pipelines"],
+    triggerType: raw["trigger-type"],
+    cdkSourceMetadataFile: raw["cdk-source-metadata-file"],
+    cloudAssemblyMetadataFile: raw["cloud-assembly-metadata-file"],
+    artifactParameters: raw["artifact-parameters"],
   },
   existsSync,
 )
@@ -149,7 +123,7 @@ const inputs = parsed.value
 
 let context: TriggerContext
 try {
-  context = inActions ? await contextFromActions(raw["github-token"] ?? "") : contextFromGit()
+  context = inActions ? await contextFromActions(raw["github-token"]) : contextFromGit()
 } catch (cause) {
   fail(`Failed to read the commit being deployed: ${describe(cause)}`)
 }

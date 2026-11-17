@@ -59,14 +59,6 @@ describe("inputs are accepted", () => {
     ])
   })
 
-  test("for a cdk-source trigger whose metadata file exists", () => {
-    const result = parseInputs(
-      raw({ triggerType: "cdk-source", cdkSourceMetadataFile: "/m.json" }),
-      exists(["/m.json"]),
-    )
-    expect(result.ok && result.value.metadataFile).toBe("/m.json")
-  })
-
   test("without setting any parameters when the trigger is not an artifact", () => {
     const result = parseInputs(
       raw({ triggerType: "cloud-assembly", cloudAssemblyMetadataFile: "/c.json" }),
@@ -108,27 +100,49 @@ describe("inputs are rejected", () => {
     )
   })
 
-  test("when a cdk-source trigger names no metadata file", () => {
-    expect(error(parseInputs(raw({ triggerType: "cdk-source" }), exists([])))).toBe(
-      "Parameter 'cdk-source-metadata-file' must be set when parameter 'trigger-type' is 'cdk-source'",
-    )
-  })
-
-  test("when the metadata file does not exist", () => {
-    expect(
-      error(
-        parseInputs(
-          raw({ triggerType: "cloud-assembly", cloudAssemblyMetadataFile: "/gone.json" }),
-          exists([]),
-        ),
-      ),
-    ).toBe("File '/gone.json' describing the Cloud Assembly does not exist")
-  })
-
   test("when an artifact trigger carries no parameters", () => {
     expect(error(parseInputs(raw({ artifactParameters: "" }), exists([])))).toBe(
       "Parameter 'artifact-parameters' must be set when parameter 'trigger-type' is 'artifact'",
     )
+  })
+})
+
+describe("the metadata file uploaded beside each trigger", () => {
+  const kinds = [
+    ["cdk-source", "cdkSourceMetadataFile", "cdk-source-metadata-file", "the CDK source"],
+    ["cloud-assembly", "cloudAssemblyMetadataFile", "cloud-assembly-metadata-file", "the Cloud Assembly"],
+  ] as const
+
+  describe.each(kinds)("of a %s trigger", (triggerType, field, input, describes) => {
+    test("is the one its own input names", () => {
+      const result = parseInputs(raw({ triggerType, [field]: "/m.json" }), exists(["/m.json"]))
+      expect(result.ok && result.value.metadataFile).toBe("/m.json")
+    })
+
+    test("must be named", () => {
+      expect(error(parseInputs(raw({ triggerType }), exists([])))).toBe(
+        `Parameter '${input}' must be set when parameter 'trigger-type' is '${triggerType}'`,
+      )
+    })
+
+    test("must exist", () => {
+      expect(error(parseInputs(raw({ triggerType, [field]: "/gone.json" }), exists([])))).toBe(
+        `File '/gone.json' describing ${describes} does not exist`,
+      )
+    })
+
+    test("is not taken from the other trigger type's input", () => {
+      const other = field === "cdkSourceMetadataFile" ? "cloudAssemblyMetadataFile" : "cdkSourceMetadataFile"
+      expect(parseInputs(raw({ triggerType, [other]: "/m.json" }), exists(["/m.json"])).ok).toBe(false)
+    })
+  })
+
+  test("is not uploaded for an artifact trigger, even when one is named", () => {
+    const result = parseInputs(
+      raw({ cdkSourceMetadataFile: "/m.json", cloudAssemblyMetadataFile: "/c.json" }),
+      exists(["/m.json", "/c.json"]),
+    )
+    expect(result.ok && result.value.metadataFile).toBeUndefined()
   })
 })
 

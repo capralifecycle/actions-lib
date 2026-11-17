@@ -1,8 +1,8 @@
 import { readFileSync, statSync } from "node:fs"
 import { basename } from "node:path"
-import { parseArgs } from "node:util"
 
 import { fail, runningInActions, writeOutputs } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { sha256, zipDirectory } from "../../lib/archive.ts"
 import { putObject } from "../../lib/aws.ts"
 import { extensionOf, s3Key } from "./key.ts"
@@ -16,36 +16,10 @@ const INPUT_NAMES = [
 
 const inActions = runningInActions()
 
-const fromEnvironment = (): Record<string, string> =>
-  Object.fromEntries(
-    INPUT_NAMES.map((name) => {
-      const upper = name.toUpperCase()
-      return [
-        name,
-        process.env[`INPUT_${upper}`] ??
-          process.env[`INPUT_${upper.replace(/-/g, "_")}`] ??
-          "",
-      ]
-    }),
-  )
+const inputs = readInputs(INPUT_NAMES)
 
-function fromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
-
-const inputs = inActions ? fromEnvironment() : fromArgv()
-
-const bucket = inputs["aws-s3-bucket-name"] ?? ""
-const targetPath = inputs["target-path"] ?? ""
+const bucket = inputs["aws-s3-bucket-name"]
+const targetPath = inputs["target-path"]
 if (bucket === "") fail("Parameter 'aws-s3-bucket-name' is empty")
 if (targetPath === "") fail("Parameter 'target-path' is empty")
 
@@ -69,8 +43,8 @@ function read(path: string): { content: Uint8Array; filename: string } {
 const { content, filename } = read(targetPath)
 
 const key = s3Key({
-  explicitKey: inputs["aws-s3-key"] ?? "",
-  prefix: inputs["aws-s3-key-prefix"] ?? "",
+  explicitKey: inputs["aws-s3-key"],
+  prefix: inputs["aws-s3-key-prefix"],
   checksum: sha256(content),
   extension: extensionOf(filename),
 })

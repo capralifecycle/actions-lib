@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
 
-import { buildBody, parseTarget } from "./slack.ts"
+import {
+  type SlackTarget,
+  buildBody,
+  buildRequest,
+  parseTarget,
+  readResponse,
+} from "./slack.ts"
 
 const error = (result: ReturnType<typeof parseTarget>): string => {
   if (result.ok) throw new Error("expected an error, got a target")
@@ -64,19 +70,79 @@ describe("the request body", () => {
   })
 })
 
-describe("a refusal from Slack", () => {
-  test("names the error Slack gave, or says so when it gave none", async () => {
-    const { post } = await import("./slack.ts")
-    const original = globalThis.fetch
-    globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ ok: false }), {
-        status: 200,
-      })) as unknown as typeof fetch
-    try {
-      const result = await post({ kind: "bot", token: "t" }, "{}")
-      expect(result).toEqual({ ok: false, error: "Request failed with error unknown" })
-    } finally {
-      globalThis.fetch = original
-    }
+describe("the request", () => {
+  test("goes to the Web API with the bot token as a bearer token", () => {
+    expect(buildRequest({ kind: "bot", token: "xoxb-1" })).toEqual({
+      url: "https://slack.com/api/chat.postMessage",
+      headers: {
+        Authorization: "Bearer xoxb-1",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    })
+  })
+
+  test("goes to the webhook URL with no credential of its own", () => {
+    expect(buildRequest({ kind: "webhook", url: "https://hooks.slack.test/1" })).toEqual({
+      url: "https://hooks.slack.test/1",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    })
+  })
+})
+
+describe("Slack's answer", () => {
+  const bot: SlackTarget = { kind: "bot", token: "t" }
+  const webhook: SlackTarget = { kind: "webhook", url: "https://hooks.slack.test/1" }
+  const answer = (status: number, body: string, statusText = "") => ({
+    status,
+    statusText,
+    body,
+  })
+
+  test.each([
+    ["the Web API", bot, answer(200, '{"ok":true}')],
+    ["a webhook, whose plain-text body is not read", webhook, answer(200, "ok")],
+  ])("is an acceptance from %s", (_, target, response) => {
+    expect(readResponse(target, response)).toEqual({ ok: true, value: undefined })
+  })
+
+  test.each([
+    [
+      "names the error the Web API gave, though it answered 200",
+      bot,
+      answer(200, '{"ok":false,"error":"channel_not_found"}'),
+      "Request failed with error channel_not_found",
+    ],
+    [
+      "says so when the Web API gave no error",
+      bot,
+      answer(200, '{"ok":false}'),
+      "Request failed with error unknown",
+    ],
+    [
+      "does not take a body without the flag as an acceptance",
+      bot,
+      answer(200, "null"),
+      "Request failed with error unknown",
+    ],
+    [
+      "names the status a webhook refused with",
+      webhook,
+      answer(404, "no_service", "Not Found"),
+      "Request failed with status 404 Not Found",
+    ],
+    [
+      "names the status before reading the body",
+      bot,
+      answer(500, "<html>", "Internal Server Error"),
+      "Request failed with status 500 Internal Server Error",
+    ],
+  ])("%s", (_, target, response, expected) => {
+    expect(readResponse(target, response)).toEqual({ ok: false, error: expected })
+  })
+
+  test("is reported as unreadable when the Web API body is not JSON", () => {
+    const result = readResponse(bot, answer(200, "<html>"))
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toStartWith("Slack returned an unreadable response")
   })
 })

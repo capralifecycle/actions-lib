@@ -7,8 +7,19 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
-var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
-`).join("");
+function renderOutput({ name, value }) {
+  if (!/[\r\n]/.test(value))
+    return `${name}=${value}
+`;
+  let delimiter = "EOF";
+  while (value.includes(delimiter))
+    delimiter += "_";
+  return `${name}<<${delimiter}
+${value}
+${delimiter}
+`;
+}
+var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
 }
@@ -21,6 +32,15 @@ function mask(value) {
 // lib/result.ts
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
 
 // lib/slack.ts
 var POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
@@ -37,45 +57,66 @@ function parseTarget(botToken, incomingWebhookUrl, channel) {
   return botToken !== "" ? ok({ kind: "bot", token: botToken }) : ok({ kind: "webhook", url: incomingWebhookUrl });
 }
 var buildBody = (payload, channel) => JSON.stringify({ ...payload, ...channel === "" ? {} : { channel } });
-var endpoint = (target) => target.kind === "webhook" ? target.url : POST_MESSAGE_URL;
-var headers = (target) => ({
-  ...target.kind === "bot" ? { Authorization: `Bearer ${target.token}` } : {},
-  "Content-Type": "application/json; charset=utf-8"
-});
-async function post(target, body) {
-  let response;
-  try {
-    response = await fetch(endpoint(target), {
-      method: "POST",
-      body,
-      headers: headers(target)
-    });
-  } catch (cause) {
-    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+var buildRequest = (target) => target.kind === "webhook" ? {
+  url: target.url,
+  headers: { "Content-Type": "application/json; charset=utf-8" }
+} : {
+  url: POST_MESSAGE_URL,
+  headers: {
+    Authorization: `Bearer ${target.token}`,
+    "Content-Type": "application/json; charset=utf-8"
   }
-  if (!response.ok) {
+};
+function readResponse(target, response) {
+  if (response.status < 200 || response.status > 299) {
     return err(`Request failed with status ${response.status} ${response.statusText}`);
   }
   if (target.kind === "webhook")
     return ok(undefined);
   let result;
   try {
-    result = await response.json();
+    result = JSON.parse(response.body);
   } catch (cause) {
     return err(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
-  return result.ok ? ok(undefined) : err(`Request failed with error ${result.error ?? "unknown"}`);
+  const { ok: accepted, error } = result ?? {};
+  if (accepted === true)
+    return ok(undefined);
+  return err(`Request failed with error ${typeof error === "string" ? error : "unknown"}`);
+}
+async function post(target, body) {
+  const request = buildRequest(target);
+  try {
+    const response = await fetch(request.url, {
+      method: "POST",
+      body,
+      headers: request.headers
+    });
+    return readResponse(target, {
+      status: response.status,
+      statusText: response.statusText,
+      body: await response.text()
+    });
+  } catch (cause) {
+    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
 }
 
 // slack-notify/src/main.ts
-var input = (name) => process.env[`INPUT_${name.toUpperCase()}`] ?? process.env[`INPUT_${name.toUpperCase().replace(/-/g, "_")}`] ?? "";
-var botToken = input("bot-token");
-var incomingWebhookUrl = input("incoming-webhook-url");
+var inputs = collectInputs(process.env, [
+  "bot-token",
+  "incoming-webhook-url",
+  "channel",
+  "dry-run",
+  "payload"
+]);
+var botToken = inputs["bot-token"];
+var incomingWebhookUrl = inputs["incoming-webhook-url"];
 mask(botToken);
 mask(incomingWebhookUrl);
 var parsed;
 try {
-  parsed = JSON.parse(input("payload"));
+  parsed = JSON.parse(inputs["payload"]);
 } catch {
   fail("Failed to parse payload as JSON");
 }
@@ -83,12 +124,12 @@ if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
   fail("The payload is not a JSON object");
 }
 var payload = parsed;
-var channel = input("channel");
+var channel = inputs["channel"];
 var target = parseTarget(botToken, incomingWebhookUrl, channel);
 if (!target.ok)
   fail(target.error);
 var body = buildBody(payload, channel);
-if (input("dry-run") === "true") {
+if (inputs["dry-run"] === "true") {
   process.stdout.write(`Dry run, so the payload was built but not sent
 `);
   if (runningInActions())

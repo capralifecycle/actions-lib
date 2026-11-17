@@ -61,7 +61,7 @@ export function runContextFromEnvironment(
 }
 
 export const runContextFromArgs = (
-  values: Readonly<Record<string, string>>,
+  values: Readonly<Record<string, string | undefined>>,
 ): RunContext => ({
   serverUrl: values["server-url"] ?? "",
   repositoryFullName: values["repository-full-name"] ?? "",
@@ -76,26 +76,6 @@ export interface Findings {
 }
 
 const isTrue = (value: string): boolean => value === "true"
-
-/**
- * GitHub sets `INPUT_COMMIT-SHA` for an action on the node runtime, while a
- * composite step has to name the variable itself and underscores are the safer
- * spelling there. Accept both so the runtime can change without touching this.
- */
-export function collectInputs(
-  environment: Readonly<Record<string, string | undefined>>,
-  names: readonly string[],
-): Record<string, string> {
-  const lookup = (name: string): string => {
-    const upper = name.toUpperCase()
-    return (
-      environment[`INPUT_${upper}`] ??
-      environment[`INPUT_${upper.replace(/-/g, "_")}`] ??
-      ""
-    )
-  }
-  return Object.fromEntries(names.map((name) => [name, lookup(name)]))
-}
 
 export function parseInputs(raw: Readonly<Record<string, string>>): Result<Inputs> {
   const value = (name: string): string => raw[name] ?? ""
@@ -141,6 +121,7 @@ export function buildScanArgs(request: ScanRequest): string[] {
     request.commitSha,
     "--apikey",
     request.apikey,
+    "--plain-output",
   ]
   if (request.minSeverityLevel !== "") {
     args.push("--minimum-severity-level", request.minSeverityLevel)
@@ -162,16 +143,40 @@ export function parseScanLog(log: string): Findings {
   }
 }
 
-export const scanFailed = (exitCode: number): boolean => exitCode !== 0
+/**
+ * `clean` passed the gate, `findings` failed it, and `error` never got a
+ * result: a rejected key, an unknown repository, an unreachable API.
+ */
+export type ScanOutcome = "clean" | "findings" | "error"
 
-export const shouldNotify = (exitCode: number, inputs: Inputs): boolean =>
-  scanFailed(exitCode) && inputs.notifySlack
+/** What the client exits with when the release gate fails. */
+const GATE_FAILED_EXIT_CODE = 10
+
+export function scanOutcome(exitCode: number): ScanOutcome {
+  if (exitCode === 0) return "clean"
+  if (exitCode === GATE_FAILED_EXIT_CODE) return "findings"
+  return "error"
+}
+
+export const shouldNotify = (outcome: ScanOutcome, inputs: Inputs): boolean =>
+  outcome === "findings" && inputs.notifySlack
 
 /**
  * A scan that found something still reports its findings and notifies; whether
- * that also fails the job is the caller's choice.
+ * that also fails the job is the caller's choice. A scan that never completed
+ * always fails it, since passing would read as a clean result.
  */
-export const exitCodeFor = (
-  scanExitCode: number,
+export function exitCodeFor(
+  outcome: ScanOutcome,
+  clientExitCode: number,
   failsOnAnyFinding: boolean,
-): number => (failsOnAnyFinding ? scanExitCode : 0)
+): number {
+  switch (outcome) {
+    case "clean":
+      return 0
+    case "findings":
+      return failsOnAnyFinding ? clientExitCode : 0
+    case "error":
+      return clientExitCode
+  }
+}

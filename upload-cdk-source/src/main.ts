@@ -1,9 +1,9 @@
 import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { parseArgs } from "node:util"
 
 import { fail, runningInActions, writeOutputs } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { sha256, zipPaths } from "../../lib/archive.ts"
 import { putObject } from "../../lib/aws.ts"
 import { buildMetadata, renderMetadata, selectEntries } from "./source.ts"
@@ -15,47 +15,21 @@ const INPUT_NAMES = ["aws-s3-bucket-name", "include-files", "cdk-app-dir"] as co
 
 const inActions = runningInActions()
 
-const fromEnvironment = (): Record<string, string> =>
-  Object.fromEntries(
-    INPUT_NAMES.map((name) => {
-      const upper = name.toUpperCase()
-      return [
-        name,
-        process.env[`INPUT_${upper}`] ??
-          process.env[`INPUT_${upper.replace(/-/g, "_")}`] ??
-          "",
-      ]
-    }),
-  )
+const inputs = readInputs(INPUT_NAMES)
 
-function fromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
-
-const inputs = inActions ? fromEnvironment() : fromArgv()
-
-const bucket = inputs["aws-s3-bucket-name"] ?? ""
+const bucket = inputs["aws-s3-bucket-name"]
 if (bucket === "") fail("Parameter 'aws-s3-bucket-name' is empty")
 
 // In a workflow the action.yml default fills this in, so an empty value means
 // a caller overrode it with one, which the shell version refused too.
-const includeFiles = inputs["include-files"] ?? ""
+const includeFiles = inputs["include-files"]
 if (inActions && includeFiles === "") fail("Parameter 'include-files' is empty")
 const patterns = includeFiles === "" ? DEFAULT_INCLUDE_FILES : includeFiles
 
 const sourceDirectory =
-  (inputs["cdk-app-dir"] ?? "") === ""
+  inputs["cdk-app-dir"] === ""
     ? (process.env["GITHUB_WORKSPACE"] ?? process.cwd())
-    : (inputs["cdk-app-dir"] as string)
+    : inputs["cdk-app-dir"]
 
 if (!existsSync(join(sourceDirectory, "cdk.json"))) {
   fail(
@@ -73,12 +47,13 @@ try {
 }
 
 const selected = selectEntries(present, patterns)
-if (selected.length === 0) {
+if (!selected.ok) fail(selected.error)
+if (selected.value.length === 0) {
   fail(`Nothing in '${sourceDirectory}' matched the 'include-files' patterns`)
 }
-process.stdout.write(`Archiving ${selected.join(", ")}\n`)
+process.stdout.write(`Archiving ${selected.value.join(", ")}\n`)
 
-const archive = zipPaths(sourceDirectory, selected)
+const archive = zipPaths(sourceDirectory, selected.value)
 if (!archive.ok) fail(archive.error)
 
 const key = `${sha256(archive.value)}.zip`

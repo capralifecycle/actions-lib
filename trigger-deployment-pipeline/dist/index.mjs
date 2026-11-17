@@ -64205,7 +64205,6 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { hostname, userInfo } from "node:os";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 var runningInActions = () => process.env["GITHUB_ACTIONS"] === "true";
@@ -64215,6 +64214,42 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
+
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
+// lib/result.ts
+var ok = (value) => ({ ok: true, value });
+var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
+}
 
 // lib/aws.ts
 var import_client_s3 = __toESM(require_dist_cjs17(), 1);
@@ -77317,10 +77352,6 @@ async function putParameter(name, value) {
   await new $SSMClient({}).send(new $PutParameterCommand({ Name: name, Value: value, Type: "String", Overwrite: true }));
 }
 
-// lib/result.ts
-var ok = (value) => ({ ok: true, value });
-var err = (error) => ({ ok: false, error });
-
 // trigger-deployment-pipeline/src/trigger.ts
 var TRIGGER_TYPES = ["cdk-source", "cloud-assembly", "artifact"];
 var ARTIFACT_PARAMETER_NAMESPACE = "/liflig-cdk/default/pipeline-variables";
@@ -77423,23 +77454,6 @@ var INPUT_NAMES = [
   "artifact-parameters"
 ];
 var inActions = runningInActions();
-var fromEnvironment = () => Object.fromEntries(INPUT_NAMES.map((name) => {
-  const upper = name.toUpperCase();
-  return [
-    name,
-    process.env[`INPUT_${upper}`] ?? process.env[`INPUT_${upper.replace(/-/g, "_")}`] ?? ""
-  ];
-}));
-function fromArgv() {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]))
-    });
-    return values;
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-}
 var git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 var describe = (cause) => cause instanceof Error ? cause.message : String(cause);
 async function runStartedAt(repository, runId, token) {
@@ -77500,21 +77514,21 @@ function contextFromGit() {
     repositoryOwner: remote?.owner ?? ""
   };
 }
-var raw = inActions ? fromEnvironment() : fromArgv();
+var raw = readInputs(INPUT_NAMES);
 var parsed = parseInputs({
-  bucket: raw["aws-s3-bucket-name"] ?? "",
-  pipelines: raw["pipelines"] ?? "",
-  triggerType: raw["trigger-type"] ?? "",
-  cdkSourceMetadataFile: raw["cdk-source-metadata-file"] ?? "",
-  cloudAssemblyMetadataFile: raw["cloud-assembly-metadata-file"] ?? "",
-  artifactParameters: raw["artifact-parameters"] ?? ""
+  bucket: raw["aws-s3-bucket-name"],
+  pipelines: raw["pipelines"],
+  triggerType: raw["trigger-type"],
+  cdkSourceMetadataFile: raw["cdk-source-metadata-file"],
+  cloudAssemblyMetadataFile: raw["cloud-assembly-metadata-file"],
+  artifactParameters: raw["artifact-parameters"]
 }, existsSync);
 if (!parsed.ok)
   fail(parsed.error);
 var inputs = parsed.value;
 var context;
 try {
-  context = inActions ? await contextFromActions(raw["github-token"] ?? "") : contextFromGit();
+  context = inActions ? await contextFromActions(raw["github-token"]) : contextFromGit();
 } catch (cause) {
   fail(`Failed to read the commit being deployed: ${describe(cause)}`);
 }

@@ -1,6 +1,5 @@
 // aikido-scan/src/main.ts
 import { spawn } from "node:child_process";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 import { appendFileSync } from "node:fs";
@@ -11,8 +10,19 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
-var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
-`).join("");
+function renderOutput({ name, value }) {
+  if (!/[\r\n]/.test(value))
+    return `${name}=${value}
+`;
+  let delimiter = "EOF";
+  while (value.includes(delimiter))
+    delimiter += "_";
+  return `${name}<<${delimiter}
+${value}
+${delimiter}
+`;
+}
+var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
 }
@@ -22,9 +32,41 @@ function mask(value) {
 `);
 }
 
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
 // lib/result.ts
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
+}
 
 // lib/slack.ts
 var POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
@@ -41,34 +83,49 @@ function parseTarget(botToken, incomingWebhookUrl, channel) {
   return botToken !== "" ? ok({ kind: "bot", token: botToken }) : ok({ kind: "webhook", url: incomingWebhookUrl });
 }
 var buildBody = (payload, channel) => JSON.stringify({ ...payload, ...channel === "" ? {} : { channel } });
-var endpoint = (target) => target.kind === "webhook" ? target.url : POST_MESSAGE_URL;
-var headers = (target) => ({
-  ...target.kind === "bot" ? { Authorization: `Bearer ${target.token}` } : {},
-  "Content-Type": "application/json; charset=utf-8"
-});
-async function post(target, body) {
-  let response;
-  try {
-    response = await fetch(endpoint(target), {
-      method: "POST",
-      body,
-      headers: headers(target)
-    });
-  } catch (cause) {
-    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+var buildRequest = (target) => target.kind === "webhook" ? {
+  url: target.url,
+  headers: { "Content-Type": "application/json; charset=utf-8" }
+} : {
+  url: POST_MESSAGE_URL,
+  headers: {
+    Authorization: `Bearer ${target.token}`,
+    "Content-Type": "application/json; charset=utf-8"
   }
-  if (!response.ok) {
+};
+function readResponse(target, response) {
+  if (response.status < 200 || response.status > 299) {
     return err(`Request failed with status ${response.status} ${response.statusText}`);
   }
   if (target.kind === "webhook")
     return ok(undefined);
   let result;
   try {
-    result = await response.json();
+    result = JSON.parse(response.body);
   } catch (cause) {
     return err(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
-  return result.ok ? ok(undefined) : err(`Request failed with error ${result.error ?? "unknown"}`);
+  const { ok: accepted, error } = result ?? {};
+  if (accepted === true)
+    return ok(undefined);
+  return err(`Request failed with error ${typeof error === "string" ? error : "unknown"}`);
+}
+async function post(target, body) {
+  const request = buildRequest(target);
+  try {
+    const response = await fetch(request.url, {
+      method: "POST",
+      body,
+      headers: request.headers
+    });
+    return readResponse(target, {
+      status: response.status,
+      statusText: response.statusText,
+      body: await response.text()
+    });
+  } catch (cause) {
+    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
 }
 
 // aikido-scan/src/scan.ts
@@ -96,13 +153,6 @@ var runContextFromArgs = (values) => ({
   runId: values["run-id"] ?? ""
 });
 var isTrue = (value) => value === "true";
-function collectInputs(environment, names) {
-  const lookup = (name) => {
-    const upper = name.toUpperCase();
-    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
-  };
-  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
-}
 function parseInputs(raw) {
   const value = (name) => raw[name] ?? "";
   const notifySlack = isTrue(value("notify-slack"));
@@ -136,7 +186,8 @@ function buildScanArgs(request) {
     request.repository,
     request.commitSha,
     "--apikey",
-    request.apikey
+    request.apikey,
+    "--plain-output"
   ];
   if (request.minSeverityLevel !== "") {
     args.push("--minimum-severity-level", request.minSeverityLevel);
@@ -159,9 +210,25 @@ function parseScanLog(log) {
     diffUrl: diffUrl ? diffUrl[1] : ""
   };
 }
-var scanFailed = (exitCode) => exitCode !== 0;
-var shouldNotify = (exitCode, inputs) => scanFailed(exitCode) && inputs.notifySlack;
-var exitCodeFor = (scanExitCode, failsOnAnyFinding) => failsOnAnyFinding ? scanExitCode : 0;
+var GATE_FAILED_EXIT_CODE = 10;
+function scanOutcome(exitCode) {
+  if (exitCode === 0)
+    return "clean";
+  if (exitCode === GATE_FAILED_EXIT_CODE)
+    return "findings";
+  return "error";
+}
+var shouldNotify = (outcome, inputs) => outcome === "findings" && inputs.notifySlack;
+function exitCodeFor(outcome, clientExitCode, failsOnAnyFinding) {
+  switch (outcome) {
+    case "clean":
+      return 0;
+    case "findings":
+      return failsOnAnyFinding ? clientExitCode : 0;
+    case "error":
+      return clientExitCode;
+  }
+}
 
 // aikido-scan/src/slack.ts
 var SHORT_SHA_LENGTH = 7;
@@ -170,12 +237,13 @@ function buildSlackPayload(repository, commitSha, findings, context) {
   const shortSha = commitSha.slice(0, SHORT_SHA_LENGTH);
   const commitUrl = `${context.serverUrl}/${context.repositoryFullName}/commit/${commitSha}`;
   const runUrl = `${context.serverUrl}/${context.repositoryFullName}/actions/runs/${context.runId}`;
+  const hasReport = findings.diffUrl !== "";
   return {
-    text: `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues: ${findings.diffUrl}`,
+    text: `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues` + (hasReport ? `: ${findings.diffUrl}` : ""),
     blocks: [
       {
         type: "section",
-        text: mrkdwn(`:shield: Aikido scan found *${findings.issues}* issues on *${repository}* — <${findings.diffUrl}|View in Aikido>`)
+        text: mrkdwn(`:shield: Aikido scan found *${findings.issues}* issues on *${repository}*` + (hasReport ? ` — <${findings.diffUrl}|View in Aikido>` : ""))
       },
       {
         type: "context",
@@ -204,20 +272,6 @@ var INPUT_NAMES = [
   "channel"
 ];
 var inActions = runningInActions();
-var rawFromEnvironment = () => collectInputs(process.env, INPUT_NAMES);
-function valuesFromArgv() {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries([...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
-        name,
-        { type: "string", default: "" }
-      ]))
-    });
-    return values;
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-}
 function runScan(args) {
   return new Promise((resolve) => {
     const child = spawn(CLIENT_COMMAND, args, {
@@ -243,11 +297,10 @@ async function postToSlack(payload, inputs) {
   if (!sent.ok)
     fail(sent.error);
 }
-var argv = inActions ? undefined : valuesFromArgv();
-var raw = argv ?? rawFromEnvironment();
-var context = argv ? runContextFromArgs(argv) : runContextFromEnvironment(process.env);
-mask(raw["apikey"] ?? "");
-mask(raw["bot-token"] ?? "");
+var raw = readInputs(INPUT_NAMES, CONTEXT_NAMES);
+var context = inActions ? runContextFromEnvironment(process.env) : runContextFromArgs(raw);
+mask(raw["apikey"]);
+mask(raw["bot-token"]);
 var inputs = parseInputs(raw);
 if (!inputs.ok)
   fail(inputs.error);
@@ -255,10 +308,11 @@ var args = buildScanArgs(inputs.value.scan);
 process.stdout.write(`Scanning ${inputs.value.scan.repository} at ${inputs.value.scan.commitSha}
 `);
 var { exitCode, log } = await runScan(args);
+var outcome = scanOutcome(exitCode);
 var findings = parseScanLog(log);
 var slackNotified = false;
 var payload;
-if (shouldNotify(exitCode, inputs.value)) {
+if (shouldNotify(outcome, inputs.value)) {
   payload = buildSlackPayload(inputs.value.scan.repository, inputs.value.scan.commitSha, findings, context);
   await postToSlack(payload, inputs.value);
   slackNotified = true;
@@ -277,15 +331,22 @@ if (payload !== undefined) {
 if (inActions) {
   writeOutputs(outputs);
 }
-if (!scanFailed(exitCode)) {
-  process.stdout.write(`Aikido scan found no new issues
+switch (outcome) {
+  case "clean":
+    process.stdout.write(`Aikido scan found no new issues
 `);
-  process.exit(0);
+    break;
+  case "findings":
+    process.stdout.write(`Aikido scan found ${findings.issues} issue(s)` + `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}
+`);
+    if (!inputs.value.failsOnAnyFinding) {
+      process.stdout.write(`'fails-on-any-finding' is disabled, so the action will not fail
+`);
+    }
+    break;
+  case "error":
+    process.stderr.write(`'${CLIENT_COMMAND}' failed with exit code ${exitCode} before the scan completed
+`);
+    break;
 }
-process.stdout.write(`Aikido scan found ${findings.issues} issue(s) (exit code ${exitCode})` + `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}
-`);
-if (!inputs.value.failsOnAnyFinding) {
-  process.stdout.write(`'fails-on-any-finding' is disabled, so the action will not fail
-`);
-}
-process.exit(exitCodeFor(exitCode, inputs.value.failsOnAnyFinding));
+process.exit(exitCodeFor(outcome, exitCode, inputs.value.failsOnAnyFinding));

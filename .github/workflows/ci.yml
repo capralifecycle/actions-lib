@@ -67,10 +67,6 @@ jobs:
           version: 2026.11.8
           install: true # run mise install
           cache: true
-      # semantic-release has a node shebang, so it runs under Node either way.
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: ".node-version"
       - name: "install dependencies"
         run: bun install --frozen-lockfile
       - name: release

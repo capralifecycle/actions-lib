@@ -15,5 +15,17 @@
     "managerFilePatterns": ["/^\\.github/workflows/tests\\.yml$/"],
     "matchStrings": ["(?<depName>floci/floci):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"],
     "datasourceTemplate": "docker"
+  }, {
+    "customType": "regex",
+    "managerFilePatterns": ["/^hk\\.pkl$/"],
+    "matchStrings": ["github\\.com/jdx/hk/releases/download/v(?<currentValue>\\d+\\.\\d+\\.\\d+)/hk@\\d+\\.\\d+\\.\\d+#"],
+    "autoReplaceStringTemplate": "github.com/jdx/hk/releases/download/v{{{newValue}}}/hk@{{{newValue}}}#",
+    "depNameTemplate": "jdx/hk",
+    "datasourceTemplate": "github-releases",
+    "extractVersionTemplate": "^v(?<version>.+)$"
+  }],
+  "packageRules": [{
+    "matchDepNames": ["hk", "jdx/hk"],
+    "groupName": "hk"
   }]
 }

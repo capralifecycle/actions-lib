@@ -43,6 +43,7 @@ them along with the README table; commit the result.
 make            # build, lint, typecheck and test
 make ci         # the same, failing if it changed a tracked file
 make build      # bun install, then regenerate the bundles and the README
+make lint       # hk check --all
 make test       # bun test
 make typecheck  # tsc --noEmit
 make dist       # rebuild the bundles
@@ -65,11 +66,19 @@ checking inputs and passing them on.
 
 ## Continuous Integration (CI)
 
-All shell scripts in the repository are automatically checked using shellcheck.
+[hk](https://hk.jdx.dev) runs the linters, configured in [hk.pkl](hk.pkl):
+shellcheck, jactionlint on the workflows and composite actions, gitleaks,
+whitespace and merge-conflict checks, and the README table. `make lint` runs
+them on every file, so CI runs the same checks as the Git hooks.
+
+`make install-tools` installs the tools and the Git hooks. The pre-commit hook
+fixes what it can in the staged files and stages the result, commit-msg
+requires a conventional commit, and pre-push runs the typecheck and the unit
+tests.
 
 Releases are made using semantic-release which checks the commit history and evaluates them according to conventional commits.
 
-The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). `make` regenerates it, so commit the result after changing an action's name or description. `make lint-docs` runs the same generator with `--check`, and the pre-commit hook uses it to catch a stale table.
+The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). `make` regenerates it, so commit the result after changing an action's name or description. The pre-commit hook regenerates it when an `action.yml` changes.
 
 ### Tests
 

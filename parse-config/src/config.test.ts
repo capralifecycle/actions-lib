@@ -50,6 +50,14 @@ describe("a configuration is rejected", () => {
     )
   })
 
+  test("when it names no schema version, whatever else it holds", () => {
+    const { version, ...withoutVersion } = minimal
+    expect(error(validate(withoutVersion))).toBe("The configuration has no 'version' string")
+    expect(error(validate(config({ version: 0.1 })))).toBe(
+      "The configuration has no 'version' string",
+    )
+  })
+
   test("when the schema version is unknown", () => {
     expect(error(validate(config({ version: "9.9" })))).toBe(
       "No matching schema found for schema version '9.9'",

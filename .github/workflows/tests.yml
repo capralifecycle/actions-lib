@@ -47,6 +47,24 @@ jobs:
       - uses: ./parse-config
         name: act-parse-config
         id: act-parse-config
+      - name: assert-parse-config
+        id: assert-parse-config
+        env:
+          ASSERT_GOT_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
+          ASSERT_GOT_ROLE_NAME: ${{ steps.act-parse-config.outputs.roleName }}
+          ASSERT_GOT_LIMITED_ROLE_NAME: ${{ steps.act-parse-config.outputs.limitedRoleName }}
+          ASSERT_GOT_ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          ASSERT_GOT_ECR_REPOSITORY: ${{ steps.act-parse-config.outputs.ecrRepository }}
+          ASSERT_GOT_DEV_PIPELINES: ${{ steps.act-parse-config.outputs.devPipelines }}
+          ASSERT_GOT_PROD_PIPELINES: ${{ steps.act-parse-config.outputs.prodPipelines }}
+        run: |
+          test "$ASSERT_GOT_ACCOUNT_ID" = "000000000000"
+          test "$ASSERT_GOT_ROLE_NAME" = "actions-lib-main"
+          test "$ASSERT_GOT_LIMITED_ROLE_NAME" = "actions-lib-limited"
+          test "$ASSERT_GOT_ARTIFACT_BUCKET" = "actions-lib-artifacts"
+          test "$ASSERT_GOT_ECR_REPOSITORY" = "actions-lib-artifacts"
+          test "$ASSERT_GOT_DEV_PIPELINES" = "actions-lib-apps-dev actions-lib-core-dev"
+          test "$ASSERT_GOT_PROD_PIPELINES" = "actions-lib-apps-prod actions-lib-core-prod"
       - uses: ./parse-config
         name: act-parse-config-should-succeed
         id: act-parse-config-should-succeed
@@ -54,23 +72,24 @@ jobs:
           config: |
             {
               "version": "0.1",
-              "accountId": "000000000000",
-              "roleName": "actions-lib-main",
-              "ecrRepository": "actions-lib-artifacts",
-              "artifactBucket": "actions-lib-artifacts"
+              "accountId": "111111111111",
+              "roleName": "inline-role",
+              "artifactBucket": "inline-bucket"
             }
+      # The inline values differ from the file's, so this also shows that
+      # 'config' is read in preference to the default 'config-file'.
       - name: assert-parse-config-should-succeed
         id: assert-parse-config-should-succeed
         env:
-          ASSERT_GOT_AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
-          ASSERT_GOT_PROD_PIPELINES: ${{ steps.act-parse-config.outputs.prodPipelines }}
-          ASSERT_GOT_ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
-          ASSERT_GOT_ECR_REPOSITORY: ${{ steps.act-parse-config.outputs.ecrRepository }}
+          ASSERT_GOT_ACCOUNT_ID: ${{ steps.act-parse-config-should-succeed.outputs.accountId }}
+          ASSERT_GOT_ROLE_NAME: ${{ steps.act-parse-config-should-succeed.outputs.roleName }}
+          ASSERT_GOT_ARTIFACT_BUCKET: ${{ steps.act-parse-config-should-succeed.outputs.artifactBucket }}
+          ASSERT_GOT_ECR_REPOSITORY: ${{ steps.act-parse-config-should-succeed.outputs.ecrRepository }}
         run: |
-          test "${ASSERT_GOT_AWS_ACCOUNT_ID}" != ""
-          test "${ASSERT_GOT_PROD_PIPELINES}" != ""
-          test "${ASSERT_GOT_ARTIFACT_BUCKET}" != ""
-          test "${ASSERT_GOT_ECR_REPOSITORY}" != ""
+          test "$ASSERT_GOT_ACCOUNT_ID" = "111111111111"
+          test "$ASSERT_GOT_ROLE_NAME" = "inline-role"
+          test "$ASSERT_GOT_ARTIFACT_BUCKET" = "inline-bucket"
+          test "$ASSERT_GOT_ECR_REPOSITORY" = ""
       - uses: ./parse-config
         name: act-parse-config-should-fail
         id: act-parse-config-should-fail
@@ -374,6 +393,25 @@ jobs:
           )"
           test "$got_num_cdk_source_files" -eq "$ASSERT_EXPECTED_NUM_CDK_SOURCE_FILES"
           test "$got_num_trigger_files" -eq "$ASSERT_EXPECTED_NUM_TRIGGER_FILES"
+      # The trigger's shape is a contract with the pipeline's notification
+      # handler, and its start time comes from the GitHub API.
+      - name: assert-trigger-deployment-pipeline-cdk-source-content
+        env:
+          ARTIFACT_BUCKET: ${{ steps.act-parse-config.outputs.artifactBucket }}
+          METADATA_FILE: ${{ steps.arrange-trigger-deployment-pipeline-cdk-source.outputs.file }}
+        run: |
+          for pipeline in pipeline-1 pipeline-2; do
+            aws s3 cp "s3://$ARTIFACT_BUCKET/pipelines/$pipeline/cdk-source.json" - | cmp - "$METADATA_FILE"
+            aws s3 cp "s3://$ARTIFACT_BUCKET/pipelines/$pipeline/trigger" - \
+              | jq --exit-status --arg sha "$GITHUB_SHA" --arg owner "${GITHUB_REPOSITORY%%/*}" --arg name "${GITHUB_REPOSITORY#*/}" '
+                  .version == "0.1"
+                  and .ci.type == "GITHUB_ACTIONS"
+                  and (.ci.startTime | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T"))
+                  and (.ci.stopTime | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$"))
+                  and .vcs.commitHash == $sha
+                  and .vcs.repositoryOwner == $owner
+                  and .vcs.repositoryName == $name'
+          done
       - name: arrange-trigger-deployment-pipeline-cloud-assembly
         id: arrange-trigger-deployment-pipeline-cloud-assembly
         env:
@@ -428,7 +466,7 @@ jobs:
           pipelines: "pipeline-1 pipeline-2"
           aws-s3-bucket-name: ${{ steps.act-parse-config.outputs.artifactBucket }}
           trigger-type: artifact
-          artifact-parameters: "ecrTag=example ecrTag2=example"
+          artifact-parameters: "ecrTag=tag-1 ecrTag2=tag-2"
       - name: assert-trigger-deployment-pipeline-artifact
         id: assert-trigger-deployment-pipeline-artifact
         env:
@@ -449,6 +487,22 @@ jobs:
           )"
           test "$got_num_artifact_parameters" -eq "$ASSERT_EXPECTED_NUM_ARTIFACT_PARAMETERS"
           test "$got_num_trigger_files" -eq "$ASSERT_EXPECTED_NUM_TRIGGER_FILES"
+          for parameter in ecrTag=tag-1 ecrTag2=tag-2; do
+            got="$(aws ssm get-parameter \
+              --name "/liflig-cdk/default/pipeline-variables/${parameter%%=*}" \
+              --query "Parameter.Value" \
+              --output text
+            )"
+            test "$got" = "${parameter#*=}"
+          done
+          # An artifact trigger carries no metadata file.
+          got_num_json_files="$(aws s3api list-objects-v2 \
+            --bucket "$ARTIFACT_BUCKET" \
+            --query "Contents[?ends_with(Key, '.json')].[Key]" \
+            --output text \
+            | grep -c . || true
+          )"
+          test "$got_num_json_files" -eq 0
       - name: arrange-trigger-deployment-pipeline-cdk-source-should-fail
         id: arrange-trigger-deployment-pipeline-cdk-source-should-fail
         run: |

@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "n
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { sha256, zipDirectory } from "./archive.ts"
+import { sha256, zipDirectory, zipPaths } from "./archive.ts"
 
 const built = (directory: string): Uint8Array => {
   const result = zipDirectory(directory)
@@ -101,7 +101,47 @@ describe("a directory that cannot be archived", () => {
     writeFileSync(join(root, "a.txt"), "a\n")
     mkdirSync(join(root, "sub"))
     symlinkSync(root, join(root, "sub", "loop"))
-    expect(Object.keys(unzipSync(built(root)))).toContain("a.txt")
+    expect(Object.keys(unzipSync(built(root))).sort()).toEqual(["a.txt", "sub/"])
+  })
+
+  test("names the entry it could not read", () => {
+    const root = mkdtempSync(join(tmpdir(), "archive-dangling-"))
+    symlinkSync("missing.txt", join(root, "dangling.txt"))
+    const result = zipDirectory(root)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain("dangling.txt")
+  })
+})
+
+describe("a directory reached through more than one path", () => {
+  test("is stored under each, as zip -r does", () => {
+    // The layout pnpm gives node_modules: each package is a symlink into a
+    // store that sorts, and is therefore walked, first.
+    const root = mkdtempSync(join(tmpdir(), "archive-shared-"))
+    mkdirSync(join(root, ".store", "pkg"), { recursive: true })
+    writeFileSync(join(root, ".store", "pkg", "index.js"), "module.exports = 1\n")
+    symlinkSync(join(".store", "pkg"), join(root, "pkg"))
+
+    const names = Object.keys(unzipSync(built(root)))
+    expect(names).toContain(".store/pkg/index.js")
+    expect(names).toContain("pkg/index.js")
+  })
+})
+
+describe("selected paths under a root", () => {
+  test("are archived with names relative to the root, directories whole", () => {
+    const root = fixture()
+    const result = zipPaths(root, ["data.txt", "nested"])
+    if (!result.ok) throw new Error(result.error)
+    expect(Object.keys(unzipSync(result.value)).sort()).toEqual([
+      "data.txt",
+      "nested/",
+      "nested/inner.txt",
+    ])
+  })
+
+  test("are refused when one of them does not exist", () => {
+    expect(zipPaths(fixture(), ["absent"]).ok).toBe(false)
   })
 })
 

@@ -64883,10 +64883,10 @@ var modeAttributes = (mode) => (mode & 65535) << 16;
 var toEntryName = (path) => path.split(sep).join("/");
 function collect(root, starts) {
   const entries = [];
-  const seen = new Set;
-  const pending = [...starts].reverse();
+  const noAncestors = new Set;
+  const pending = starts.map((path) => ({ path, ancestors: noAncestors })).reverse();
   while (pending.length > 0) {
-    const path = pending.pop();
+    const { path, ancestors } = pending.pop();
     const stats = statSync(path);
     if (!stats.isDirectory()) {
       entries.push({
@@ -64897,9 +64897,9 @@ function collect(root, starts) {
       continue;
     }
     const real = realpathSync(path);
-    if (seen.has(real))
+    if (ancestors.has(real))
       continue;
-    seen.add(real);
+    const within = new Set(ancestors).add(real);
     if (path !== root) {
       entries.push({
         name: `${toEntryName(relative(root, path))}/`,
@@ -64908,8 +64908,9 @@ function collect(root, starts) {
       });
     }
     const children = readdirSync(path).sort();
-    for (const child of children.reverse())
-      pending.push(join(path, child));
+    for (const child of children.reverse()) {
+      pending.push({ path: join(path, child), ancestors: within });
+    }
   }
   return entries;
 }

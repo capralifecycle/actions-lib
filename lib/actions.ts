@@ -22,8 +22,20 @@ export function fail(message: string): never {
 export const requireEnv = (name: string): string =>
   process.env[name] ?? fail(`Environment variable '${name}' is not set`)
 
+/**
+ * A value that spans lines is written between delimiters, as the runner
+ * requires; written as `name=value`, its later lines would be read as further
+ * outputs.
+ */
+function renderOutput({ name, value }: Output): string {
+  if (!/[\r\n]/.test(value)) return `${name}=${value}\n`
+  let delimiter = "EOF"
+  while (value.includes(delimiter)) delimiter += "_"
+  return `${name}<<${delimiter}\n${value}\n${delimiter}\n`
+}
+
 export const renderOutputs = (outputs: readonly Output[]): string =>
-  outputs.map((output) => `${output.name}=${output.value}\n`).join("")
+  outputs.map(renderOutput).join("")
 
 export function writeOutputs(outputs: readonly Output[]): void {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs))

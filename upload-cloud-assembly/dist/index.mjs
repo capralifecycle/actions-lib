@@ -64217,8 +64217,19 @@ function fail(message) {
   process.exit(1);
 }
 var requireEnv = (name) => process.env[name] ?? fail(`Environment variable '${name}' is not set`);
-var renderOutputs = (outputs) => outputs.map((output) => `${output.name}=${output.value}
-`).join("");
+function renderOutput({ name, value }) {
+  if (!/[\r\n]/.test(value))
+    return `${name}=${value}
+`;
+  let delimiter = "EOF";
+  while (value.includes(delimiter))
+    delimiter += "_";
+  return `${name}<<${delimiter}
+${value}
+${delimiter}
+`;
+}
+var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
 }

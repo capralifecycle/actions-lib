@@ -1,0 +1,48 @@
+amends "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Builtins.pkl"
+
+// Written by `make`, never by hand, so formatting them would only make them drift.
+local generated = List("*/dist/**", "bun.lock", "mise.lock")
+
+local linters = new Mapping<String, Step | Group> {
+  ["merge-conflict"] = (Builtins.check_merge_conflict) { exclude = generated }
+  ["newlines"] = (Builtins.newlines) { exclude = generated }
+  ["trailing-whitespace"] = (Builtins.trailing_whitespace) { exclude = generated }
+  ["shellcheck"] = Builtins.shellcheck
+  ["jactionlint"] = (Builtins.jactionlint) {
+    glob = List(".github/workflows/*.yml", "*/action.yml")
+  }
+  ["gitleaks"] = Builtins.gitleaks
+  ["readme"] {
+    glob = List("*/action.yml", "README.md", "dev-scripts/generate-docs.ts")
+    check = "bun dev-scripts/generate-docs.ts --check"
+    fix = "bun dev-scripts/generate-docs.ts"
+    stage = List("README.md")
+  }
+}
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps = linters
+  }
+  ["commit-msg"] {
+    steps {
+      ["conventional-commit"] = Builtins.check_conventional_commit
+    }
+  }
+  ["pre-push"] {
+    steps {
+      ["typecheck"] { check = "make typecheck" }
+      ["test"] { check = "make test" }
+    }
+  }
+  ["check"] {
+    steps = linters
+  }
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+}

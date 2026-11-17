@@ -43,6 +43,7 @@ them along with the README table; commit the result.
 make            # build, lint, typecheck and test
 make ci         # the same, failing if it changed a tracked file
 make build      # bun install, then regenerate the bundles and the README
+make lint       # hk check --all
 make test       # bun test
 make typecheck  # tsc --noEmit
 make dist       # rebuild the bundles
@@ -56,48 +57,28 @@ Bun is the package manager, bundler and test runner; there is no npm lockfile.
 `bunfig.toml` pins exact versions and enforces the same minimum release age the
 org Renovate preset applies to automated bumps.
 
-### Shell scripts
+### Composite actions
 
-Most actions are implemented as composite actions using shell scripts.
-
-To make some of these actions usable locally the shell scripts are in isolated files that are structured in the following manner:
-
-```sh
-#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-parse_args() {
-  # Set default argument values if relevant
-  INPUT_MY_INPUT=""
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --my-input) INPUT_MY_INPUT="$2"; shift; shift ;;
-      *) echo "Unknown option '$1'"; exit 1 ;;
-    esac
-  done
-  # Validate any arguments if relevant
-  if [ "$INPUT_MY_INPUT" = "" ]; then
-    echo "Parameter 'my-input' is empty"; exit 1
-  fi
-  readonly INPUT_MY_INPUT
-  export INPUT_MY_INPUT
-}
-
-main() {
-  parse_args "$@"
-  # Do stuff
-}
-
-main "$@"
-```
+An action is `composite` only when it has to call other actions, such as
+`actions/setup-node` or a vendor's action. Logic of its own belongs in a
+TypeScript bundle that a step runs with `node`; shell steps stay glue, such as
+checking inputs and passing them on.
 
 ## Continuous Integration (CI)
 
-All shell scripts in the repository are automatically checked using shellcheck.
+[hk](https://hk.jdx.dev) runs the linters, configured in [hk.pkl](hk.pkl):
+shellcheck, jactionlint on the workflows and composite actions, gitleaks,
+whitespace and merge-conflict checks, and the README table. `make lint` runs
+them on every file, so CI runs the same checks as the Git hooks.
+
+`make install-tools` installs the tools and the Git hooks. The pre-commit hook
+fixes what it can in the staged files and stages the result, commit-msg
+requires a conventional commit, and pre-push runs the typecheck and the unit
+tests.
 
 Releases are made using semantic-release which checks the commit history and evaluates them according to conventional commits.
 
-The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). `make` regenerates it, so commit the result after changing an action's name or description. `make lint-docs` runs the same generator with `--check`, and the pre-commit hook uses it to catch a stale table.
+The README action table is generated from the `action.yml` metadata by [dev-scripts/generate-docs.ts](dev-scripts/generate-docs.ts). `make` regenerates it, so commit the result after changing an action's name or description. The pre-commit hook regenerates it when an `action.yml` changes.
 
 ### Tests
 

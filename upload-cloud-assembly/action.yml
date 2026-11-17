@@ -1,6 +1,6 @@
 name: "upload-cloud-assembly"
 description: |
-  description: "Create and upload an archive of the CDK source to use during deployment of a Liflig CDK Pipeline"
+  description: "Synthesize the CDK application and upload its Cloud Assembly to use during deployment of a Liflig CDK Pipeline"
   local: true
 inputs:
   aws-s3-bucket-name:

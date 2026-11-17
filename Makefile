@@ -40,28 +40,10 @@ lock-tools:
 install:
 	bun install $(INSTALL_FLAGS)
 
+# The same checks the pre-commit hook runs, on every file rather than the staged ones.
 .PHONY: lint
-lint: lint-shell lint-secrets lint-workflows
-
-.PHONY: lint-docs
-lint-docs:
-	bun $(SCRIPTS)/generate-docs.ts --check
-
-.PHONY: lint-shell
-lint-shell:
-	$(SCRIPTS)/lint-shell-scripts.sh
-
-.PHONY: lint-secrets
-lint-secrets:
-	gitleaks git --pre-commit --redact --staged --no-banner
-
-.PHONY: lint-workflows
-lint-workflows:
-	jactionlint --oneline
-
-.PHONY: lint-commit-msg
-lint-commit-msg:
-	$(SCRIPTS)/lint-commit-message.sh
+lint:
+	hk check --all
 
 .PHONY: dist
 dist:
@@ -82,11 +64,7 @@ docs:
 .PHONY: install-tools
 install-tools:
 	mise install
-	brew install shellcheck
-
-.PHONY: clean
-clean:
-	rm -rf dist
+	hk install --mise
 
 .PHONY: clean-all
 clean-all:
@@ -94,4 +72,4 @@ clean-all:
 
 .PHONY: upgrade-deps
 upgrade-deps:
-	npm run upgrade-deps
+	bun run upgrade-deps

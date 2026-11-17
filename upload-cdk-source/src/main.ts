@@ -73,12 +73,13 @@ try {
 }
 
 const selected = selectEntries(present, patterns)
-if (selected.length === 0) {
+if (!selected.ok) fail(selected.error)
+if (selected.value.length === 0) {
   fail(`Nothing in '${sourceDirectory}' matched the 'include-files' patterns`)
 }
-process.stdout.write(`Archiving ${selected.join(", ")}\n`)
+process.stdout.write(`Archiving ${selected.value.join(", ")}\n`)
 
-const archive = zipPaths(sourceDirectory, selected)
+const archive = zipPaths(sourceDirectory, selected.value)
 if (!archive.ok) fail(archive.error)
 
 const key = `${sha256(archive.value)}.zip`

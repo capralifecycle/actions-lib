@@ -65473,13 +65473,22 @@ async function putObject(request) {
 
 // upload-cdk-source/src/source.ts
 function includeMatcher(includeFiles) {
-  const alternatives = includeFiles.trim().split(/\s+/).filter(Boolean);
-  return new RegExp(`^(${alternatives.join("|")})$`);
+  const patterns = includeFiles.trim().split(/\s+/).filter(Boolean);
+  for (const pattern of patterns) {
+    try {
+      new RegExp(pattern);
+    } catch {
+      return err2(`'include-files' pattern '${pattern}' is not a valid regular expression`);
+    }
+  }
+  return ok(new RegExp(`^(?:${patterns.map((pattern) => `(?:${pattern})`).join("|")})$`));
 }
-var selectEntries = (names, includeFiles) => {
-  const matches = includeMatcher(includeFiles);
-  return names.filter((name) => matches.test(name)).sort();
-};
+function selectEntries(names, includeFiles) {
+  const matcher = includeMatcher(includeFiles);
+  if (!matcher.ok)
+    return matcher;
+  return ok(names.filter((name) => matcher.value.test(name)).sort());
+}
 var buildMetadata = (bucketName, bucketKey, versionId) => ({ bucketName, bucketKey, versionId });
 var renderMetadata = (metadata) => `${JSON.stringify(metadata, null, 2)}
 `;
@@ -65524,12 +65533,14 @@ try {
   fail(`Failed to read '${sourceDirectory}': ${cause instanceof Error ? cause.message : String(cause)}`);
 }
 var selected = selectEntries(present, patterns);
-if (selected.length === 0) {
+if (!selected.ok)
+  fail(selected.error);
+if (selected.value.length === 0) {
   fail(`Nothing in '${sourceDirectory}' matched the 'include-files' patterns`);
 }
-process.stdout.write(`Archiving ${selected.join(", ")}
+process.stdout.write(`Archiving ${selected.value.join(", ")}
 `);
-var archive2 = zipPaths(sourceDirectory, selected);
+var archive2 = zipPaths(sourceDirectory, selected.value);
 if (!archive2.ok)
   fail(archive2.error);
 var key = `${sha256(archive2.value)}.zip`;

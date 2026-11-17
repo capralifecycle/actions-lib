@@ -56,40 +56,12 @@ Bun is the package manager, bundler and test runner; there is no npm lockfile.
 `bunfig.toml` pins exact versions and enforces the same minimum release age the
 org Renovate preset applies to automated bumps.
 
-### Shell scripts
+### Composite actions
 
-Most actions are implemented as composite actions using shell scripts.
-
-To make some of these actions usable locally the shell scripts are in isolated files that are structured in the following manner:
-
-```sh
-#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-parse_args() {
-  # Set default argument values if relevant
-  INPUT_MY_INPUT=""
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --my-input) INPUT_MY_INPUT="$2"; shift; shift ;;
-      *) echo "Unknown option '$1'"; exit 1 ;;
-    esac
-  done
-  # Validate any arguments if relevant
-  if [ "$INPUT_MY_INPUT" = "" ]; then
-    echo "Parameter 'my-input' is empty"; exit 1
-  fi
-  readonly INPUT_MY_INPUT
-  export INPUT_MY_INPUT
-}
-
-main() {
-  parse_args "$@"
-  # Do stuff
-}
-
-main "$@"
-```
+An action is `composite` only when it has to call other actions, such as
+`actions/setup-node` or a vendor's action. Logic of its own belongs in a
+TypeScript bundle that a step runs with `node`; shell steps stay glue, such as
+checking inputs and passing them on.
 
 ## Continuous Integration (CI)
 

@@ -48,34 +48,49 @@ function parseTarget(botToken, incomingWebhookUrl, channel) {
   return botToken !== "" ? ok({ kind: "bot", token: botToken }) : ok({ kind: "webhook", url: incomingWebhookUrl });
 }
 var buildBody = (payload, channel) => JSON.stringify({ ...payload, ...channel === "" ? {} : { channel } });
-var endpoint = (target) => target.kind === "webhook" ? target.url : POST_MESSAGE_URL;
-var headers = (target) => ({
-  ...target.kind === "bot" ? { Authorization: `Bearer ${target.token}` } : {},
-  "Content-Type": "application/json; charset=utf-8"
-});
-async function post(target, body) {
-  let response;
-  try {
-    response = await fetch(endpoint(target), {
-      method: "POST",
-      body,
-      headers: headers(target)
-    });
-  } catch (cause) {
-    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+var buildRequest = (target) => target.kind === "webhook" ? {
+  url: target.url,
+  headers: { "Content-Type": "application/json; charset=utf-8" }
+} : {
+  url: POST_MESSAGE_URL,
+  headers: {
+    Authorization: `Bearer ${target.token}`,
+    "Content-Type": "application/json; charset=utf-8"
   }
-  if (!response.ok) {
+};
+function readResponse(target, response) {
+  if (response.status < 200 || response.status > 299) {
     return err(`Request failed with status ${response.status} ${response.statusText}`);
   }
   if (target.kind === "webhook")
     return ok(undefined);
   let result;
   try {
-    result = await response.json();
+    result = JSON.parse(response.body);
   } catch (cause) {
     return err(`Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
-  return result.ok ? ok(undefined) : err(`Request failed with error ${result.error ?? "unknown"}`);
+  const { ok: accepted, error } = result ?? {};
+  if (accepted === true)
+    return ok(undefined);
+  return err(`Request failed with error ${typeof error === "string" ? error : "unknown"}`);
+}
+async function post(target, body) {
+  const request = buildRequest(target);
+  try {
+    const response = await fetch(request.url, {
+      method: "POST",
+      body,
+      headers: request.headers
+    });
+    return readResponse(target, {
+      status: response.status,
+      statusText: response.statusText,
+      body: await response.text()
+    });
+  } catch (cause) {
+    return err(`Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
 }
 
 // slack-notify/src/main.ts

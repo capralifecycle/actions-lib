@@ -33,52 +33,80 @@ export function parseTarget(
 export const buildBody = (payload: object, channel: string): string =>
   JSON.stringify({ ...payload, ...(channel === "" ? {} : { channel }) })
 
-const endpoint = (target: SlackTarget): string =>
-  target.kind === "webhook" ? target.url : POST_MESSAGE_URL
+export interface SlackRequest {
+  readonly url: string
+  readonly headers: Readonly<Record<string, string>>
+}
 
-const headers = (target: SlackTarget): Record<string, string> => ({
-  ...(target.kind === "bot" ? { Authorization: `Bearer ${target.token}` } : {}),
-  "Content-Type": "application/json; charset=utf-8",
-})
+/** A bot token rides in a header to the Web API; a webhook URL is its own credential. */
+export const buildRequest = (target: SlackTarget): SlackRequest =>
+  target.kind === "webhook"
+    ? {
+        url: target.url,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      }
+    : {
+        url: POST_MESSAGE_URL,
+        headers: {
+          Authorization: `Bearer ${target.token}`,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      }
+
+export interface SlackResponse {
+  readonly status: number
+  readonly statusText: string
+  readonly body: string
+}
 
 /**
- * Posts an already-serialised body, reporting why Slack refused it.
- *
- * An incoming webhook answers with a plain-text body, so only the Web API
- * response is read for the `ok` flag that carries its errors.
- * See https://api.slack.com/messaging/webhooks#handling_errors
+ * Decides whether Slack accepted a message. The Web API answers 200 even when
+ * it refuses one, and says so in the `ok` flag of its JSON body. An incoming
+ * webhook signals refusal by status alone and answers with plain text, so its
+ * body is not read. See https://api.slack.com/messaging/webhooks#handling_errors
  */
+export function readResponse(
+  target: SlackTarget,
+  response: SlackResponse,
+): Result<void> {
+  if (response.status < 200 || response.status > 299) {
+    return err(`Request failed with status ${response.status} ${response.statusText}`)
+  }
+  if (target.kind === "webhook") return ok(undefined)
+
+  let result: unknown
+  try {
+    result = JSON.parse(response.body)
+  } catch (cause) {
+    return err(
+      `Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`,
+    )
+  }
+  const { ok: accepted, error } = (result ?? {}) as { ok?: unknown; error?: unknown }
+  if (accepted === true) return ok(undefined)
+  return err(`Request failed with error ${typeof error === "string" ? error : "unknown"}`)
+}
+
+/** Posts an already-serialised body, reporting why Slack refused it. */
 export async function post(
   target: SlackTarget,
   body: string,
 ): Promise<Result<void>> {
-  let response: Response
+  const request = buildRequest(target)
   try {
-    response = await fetch(endpoint(target), {
+    const response = await fetch(request.url, {
       method: "POST",
       body,
-      headers: headers(target),
+      headers: request.headers,
+    })
+    return readResponse(target, {
+      status: response.status,
+      statusText: response.statusText,
+      body: await response.text(),
     })
   } catch (cause) {
     return err(
       `Failed to reach Slack: ${cause instanceof Error ? cause.message : String(cause)}`,
     )
   }
-
-  if (!response.ok) {
-    return err(`Request failed with status ${response.status} ${response.statusText}`)
-  }
-  if (target.kind === "webhook") return ok(undefined)
-
-  let result: { ok?: boolean; error?: string }
-  try {
-    result = (await response.json()) as { ok?: boolean; error?: string }
-  } catch (cause) {
-    return err(
-      `Slack returned an unreadable response: ${cause instanceof Error ? cause.message : String(cause)}`,
-    )
-  }
-  return result.ok
-    ? ok(undefined)
-    : err(`Request failed with error ${result.error ?? "unknown"}`)
 }

@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process"
-import { parseArgs } from "node:util"
 
 import {
   fail,
@@ -7,13 +6,13 @@ import {
   runningInActions,
   writeOutputs,
 } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { buildBody, parseTarget, post } from "../../lib/slack.ts"
 import {
   CONTEXT_NAMES,
   type Inputs,
   type RunContext,
   buildScanArgs,
-  collectInputs,
   exitCodeFor,
   parseInputs,
   parseScanLog,
@@ -42,25 +41,6 @@ const INPUT_NAMES = [
 ] as const
 
 const inActions = runningInActions()
-
-const rawFromEnvironment = (): Record<string, string> =>
-  collectInputs(process.env, INPUT_NAMES)
-
-function valuesFromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        [...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
-          name,
-          { type: "string", default: "" },
-        ]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
 
 interface ScanResult {
   readonly exitCode: number
@@ -101,14 +81,13 @@ async function postToSlack(
   if (!sent.ok) fail(sent.error)
 }
 
-const argv = inActions ? undefined : valuesFromArgv()
-const raw = argv ?? rawFromEnvironment()
-const context: RunContext = argv
-  ? runContextFromArgs(argv)
-  : runContextFromEnvironment(process.env)
+const raw = readInputs(INPUT_NAMES, CONTEXT_NAMES)
+const context: RunContext = inActions
+  ? runContextFromEnvironment(process.env)
+  : runContextFromArgs(raw)
 
-mask(raw["apikey"] ?? "")
-mask(raw["bot-token"] ?? "")
+mask(raw["apikey"])
+mask(raw["bot-token"])
 
 const inputs = parseInputs(raw)
 if (!inputs.ok) fail(inputs.error)

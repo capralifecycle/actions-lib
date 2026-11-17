@@ -34,7 +34,8 @@ An action's inputs are validated in `main.ts` or the core, never assumed:
 it — a missing input arrives as an empty string.
 
 GitHub upper-cases input names but leaves their hyphens intact, so `tag-type`
-arrives as `INPUT_TAG-TYPE`.
+arrives as `INPUT_TAG-TYPE`. `readInputs` in `lib/inputs.ts` reads them, and the
+same names as `--flags` when the action runs outside a workflow.
 
 GitHub never builds the action, so the bundles are committed. `make` rebuilds
 them along with the README table; commit the result.

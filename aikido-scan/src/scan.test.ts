@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test"
 import {
   type Inputs,
   buildScanArgs,
-  collectInputs,
   exitCodeFor,
   parseInputs,
   parseScanLog,
@@ -54,33 +53,6 @@ const error = (result: ReturnType<typeof parseInputs>): string => {
   if (result.ok) throw new Error("expected an error, got inputs")
   return result.error
 }
-
-describe("reading inputs from the environment", () => {
-  test("accepts the hyphenated names the node runtime sets", () => {
-    expect(collectInputs({ "INPUT_COMMIT-SHA": "abc" }, ["commit-sha"])).toEqual({
-      "commit-sha": "abc",
-    })
-  })
-
-  test("accepts the underscored names a composite step can set", () => {
-    expect(collectInputs({ INPUT_COMMIT_SHA: "abc" }, ["commit-sha"])).toEqual({
-      "commit-sha": "abc",
-    })
-  })
-
-  test("prefers the hyphenated name when both are present", () => {
-    expect(
-      collectInputs(
-        { "INPUT_COMMIT-SHA": "hyphen", INPUT_COMMIT_SHA: "underscore" },
-        ["commit-sha"],
-      ),
-    ).toEqual({ "commit-sha": "hyphen" })
-  })
-
-  test("reports an unset input as empty rather than undefined", () => {
-    expect(collectInputs({}, ["channel"])).toEqual({ channel: "" })
-  })
-})
 
 describe("inputs are rejected", () => {
   test("when the API key is missing", () => {

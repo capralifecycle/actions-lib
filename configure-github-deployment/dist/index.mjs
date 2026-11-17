@@ -28,6 +28,15 @@ function writeOutputs(outputs) {
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
 
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+
 // configure-github-deployment/src/deployment.ts
 var DEPLOYMENT_STATES = [
   "error",
@@ -68,7 +77,12 @@ function readDeploymentState(body) {
 
 // configure-github-deployment/src/main.ts
 var API_VERSION = "2022-11-28";
-var input = (name) => process.env[`INPUT_${name.toUpperCase()}`] ?? process.env[`INPUT_${name.toUpperCase().replace(/-/g, "_")}`] ?? "";
+var inputs = collectInputs(process.env, [
+  "github-token",
+  "deployment-id",
+  "deployment-state",
+  "environment"
+]);
 async function post(url, token, payload) {
   let response;
   try {
@@ -98,20 +112,20 @@ async function post(url, token, payload) {
 if (!runningInActions()) {
   fail("This action reads the workflow's GitHub context and only runs in Actions");
 }
-var token = input("github-token");
+var token = inputs["github-token"];
 if (token === "")
   fail("Parameter 'github-token' is empty");
 var repository = requireEnv("GITHUB_REPOSITORY");
 var sha = requireEnv("GITHUB_SHA");
 var apiUrl = process.env["GITHUB_API_URL"] ?? "https://api.github.com";
 var serverUrl = process.env["GITHUB_SERVER_URL"] ?? "https://github.com";
-var state = parseDeploymentState(input("deployment-state"));
+var state = parseDeploymentState(inputs["deployment-state"]);
 if (!state.ok)
   fail(state.error);
 var outputs = [];
-var deploymentId = input("deployment-id");
+var deploymentId = inputs["deployment-id"];
 if (deploymentId === "") {
-  const environment = input("environment");
+  const environment = inputs["environment"];
   const created = await post(deploymentsUrl(apiUrl, repository), token, buildCreatePayload({ repository, ref: sha, environment }));
   const id = readDeploymentId(created);
   if (!id.ok)

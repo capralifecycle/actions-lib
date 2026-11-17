@@ -33,6 +33,15 @@ function mask(value) {
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
 
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+
 // lib/slack.ts
 var POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
 function parseTarget(botToken, incomingWebhookUrl, channel) {
@@ -94,14 +103,20 @@ async function post(target, body) {
 }
 
 // slack-notify/src/main.ts
-var input = (name) => process.env[`INPUT_${name.toUpperCase()}`] ?? process.env[`INPUT_${name.toUpperCase().replace(/-/g, "_")}`] ?? "";
-var botToken = input("bot-token");
-var incomingWebhookUrl = input("incoming-webhook-url");
+var inputs = collectInputs(process.env, [
+  "bot-token",
+  "incoming-webhook-url",
+  "channel",
+  "dry-run",
+  "payload"
+]);
+var botToken = inputs["bot-token"];
+var incomingWebhookUrl = inputs["incoming-webhook-url"];
 mask(botToken);
 mask(incomingWebhookUrl);
 var parsed;
 try {
-  parsed = JSON.parse(input("payload"));
+  parsed = JSON.parse(inputs["payload"]);
 } catch {
   fail("Failed to parse payload as JSON");
 }
@@ -109,12 +124,12 @@ if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
   fail("The payload is not a JSON object");
 }
 var payload = parsed;
-var channel = input("channel");
+var channel = inputs["channel"];
 var target = parseTarget(botToken, incomingWebhookUrl, channel);
 if (!target.ok)
   fail(target.error);
 var body = buildBody(payload, channel);
-if (input("dry-run") === "true") {
+if (inputs["dry-run"] === "true") {
   process.stdout.write(`Dry run, so the payload was built but not sent
 `);
   if (runningInActions())

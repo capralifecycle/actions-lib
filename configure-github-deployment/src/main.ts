@@ -1,4 +1,5 @@
 import { fail, requireEnv, runningInActions, writeOutputs } from "../../lib/actions.ts"
+import { collectInputs } from "../../lib/inputs.ts"
 import {
   buildCreatePayload,
   buildLogUrl,
@@ -12,10 +13,12 @@ import {
 
 const API_VERSION = "2022-11-28"
 
-const input = (name: string): string =>
-  process.env[`INPUT_${name.toUpperCase()}`] ??
-  process.env[`INPUT_${name.toUpperCase().replace(/-/g, "_")}`] ??
-  ""
+const inputs = collectInputs(process.env, [
+  "github-token",
+  "deployment-id",
+  "deployment-state",
+  "environment",
+])
 
 async function post(url: string, token: string, payload: unknown): Promise<unknown> {
   let response: Response
@@ -54,7 +57,7 @@ if (!runningInActions()) {
   fail("This action reads the workflow's GitHub context and only runs in Actions")
 }
 
-const token = input("github-token")
+const token = inputs["github-token"]
 if (token === "") fail("Parameter 'github-token' is empty")
 
 const repository = requireEnv("GITHUB_REPOSITORY")
@@ -62,14 +65,14 @@ const sha = requireEnv("GITHUB_SHA")
 const apiUrl = process.env["GITHUB_API_URL"] ?? "https://api.github.com"
 const serverUrl = process.env["GITHUB_SERVER_URL"] ?? "https://github.com"
 
-const state = parseDeploymentState(input("deployment-state"))
+const state = parseDeploymentState(inputs["deployment-state"])
 if (!state.ok) fail(state.error)
 
 const outputs: { name: string; value: string }[] = []
-let deploymentId = input("deployment-id")
+let deploymentId = inputs["deployment-id"]
 
 if (deploymentId === "") {
-  const environment = input("environment")
+  const environment = inputs["environment"]
   const created = await post(
     deploymentsUrl(apiUrl, repository),
     token,

@@ -64205,7 +64205,6 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 import { existsSync, mkdtempSync, readdirSync as readdirSync2, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join as join2 } from "node:path";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 import { appendFileSync } from "node:fs";
@@ -64231,6 +64230,42 @@ ${delimiter}
 var renderOutputs = (outputs) => outputs.map(renderOutput).join("");
 function writeOutputs(outputs) {
   appendFileSync(requireEnv("GITHUB_OUTPUT"), renderOutputs(outputs));
+}
+
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
+// lib/result.ts
+var ok = (value) => ({ ok: true, value });
+var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
 }
 
 // lib/archive.ts
@@ -64363,11 +64398,11 @@ var ec = [
   "stream finishing",
   "invalid zip data"
 ];
-var err = function(ind, msg, nt) {
+var err2 = function(ind, msg, nt) {
   var e = new Error(msg || ec[ind]);
   e.code = ind;
   if (Error.captureStackTrace)
-    Error.captureStackTrace(e, err);
+    Error.captureStackTrace(e, err2);
   if (!nt)
     throw e;
   return e;
@@ -64785,7 +64820,7 @@ var exfl = function(ex) {
     for (var k in ex) {
       var l = ex[k].length;
       if (l > 65535)
-        err(9);
+        err2(9);
       le += l + 4;
     }
   }
@@ -64802,7 +64837,7 @@ var wzh = function(d, b, f, fn, u, c, ce, co) {
   d[b++] = f.compression & 255, d[b++] = f.compression >> 8;
   var dt = new Date(f.mtime == null ? Date.now() : f.mtime), y = dt.getFullYear() - 1980;
   if (y < 0 || y > 119)
-    err(10);
+    err2(10);
   wbytes(d, b, y << 25 | dt.getMonth() + 1 << 21 | dt.getDate() << 16 | dt.getHours() << 11 | dt.getMinutes() << 5 | dt.getSeconds() >> 1), b += 4;
   if (c != -1) {
     wbytes(d, b, f.crc);
@@ -64852,7 +64887,7 @@ function zipSync(data, opts) {
     var com = p.comment, m = com && strToU8(com), ms = m && m.length;
     var exl = exfl(p.extra);
     if (s > 65535)
-      err(11);
+      err2(11);
     var d = compression ? deflateSync(file, p) : file, l = d.length;
     var c = crc();
     c.p(file);
@@ -64880,10 +64915,6 @@ function zipSync(data, opts) {
   wzf(out, o, files.length, cdl, oe);
   return out;
 }
-
-// lib/result.ts
-var ok = (value) => ({ ok: true, value });
-var err2 = (error) => ({ ok: false, error });
 
 // lib/archive.ts
 var ZIP_OS_UNIX = 3;
@@ -64931,17 +64962,17 @@ function archive(root, starts) {
   try {
     entries = collect(root, starts);
   } catch (cause) {
-    return err2(`Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`);
+    return err(`Failed to read '${directory}': ${cause instanceof Error ? cause.message : String(cause)}`);
   }
   if (entries.length === 0)
-    return err2(`Nothing to archive in '${directory}'`);
+    return err(`Nothing to archive in '${directory}'`);
   if (entries.length > MAX_ENTRIES) {
-    return err2(`'${directory}' holds ${entries.length} entries, more than the ${MAX_ENTRIES} a zip can address without Zip64`);
+    return err(`'${directory}' holds ${entries.length} entries, more than the ${MAX_ENTRIES} a zip can address without Zip64`);
   }
   const total = entries.reduce((sum, entry) => sum + entry.content.byteLength, 0);
   const tooLarge = entries.find((entry) => entry.content.byteLength > MAX_BYTES);
   if (tooLarge !== undefined || total > MAX_BYTES) {
-    return err2(`'${directory}' is too large to archive without Zip64 (limit ${MAX_BYTES} bytes per entry and in total)`);
+    return err(`'${directory}' is too large to archive without Zip64 (limit ${MAX_BYTES} bytes per entry and in total)`);
   }
   return ok(zipSync(Object.fromEntries(entries.map((entry) => [
     entry.name,
@@ -65478,7 +65509,7 @@ function includeMatcher(includeFiles) {
     try {
       new RegExp(pattern);
     } catch {
-      return err2(`'include-files' pattern '${pattern}' is not a valid regular expression`);
+      return err(`'include-files' pattern '${pattern}' is not a valid regular expression`);
     }
   }
   return ok(new RegExp(`^(?:${patterns.map((pattern) => `(?:${pattern})`).join("|")})$`));
@@ -65497,32 +65528,15 @@ var renderMetadata = (metadata) => `${JSON.stringify(metadata, null, 2)}
 var DEFAULT_INCLUDE_FILES = "assets cdk.json cdk.context.json package.*\\.json src tsconfig\\.json";
 var INPUT_NAMES = ["aws-s3-bucket-name", "include-files", "cdk-app-dir"];
 var inActions = runningInActions();
-var fromEnvironment = () => Object.fromEntries(INPUT_NAMES.map((name) => {
-  const upper = name.toUpperCase();
-  return [
-    name,
-    process.env[`INPUT_${upper}`] ?? process.env[`INPUT_${upper.replace(/-/g, "_")}`] ?? ""
-  ];
-}));
-function fromArgv() {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]))
-    });
-    return values;
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-}
-var inputs = inActions ? fromEnvironment() : fromArgv();
-var bucket = inputs["aws-s3-bucket-name"] ?? "";
+var inputs = readInputs(INPUT_NAMES);
+var bucket = inputs["aws-s3-bucket-name"];
 if (bucket === "")
   fail("Parameter 'aws-s3-bucket-name' is empty");
-var includeFiles = inputs["include-files"] ?? "";
+var includeFiles = inputs["include-files"];
 if (inActions && includeFiles === "")
   fail("Parameter 'include-files' is empty");
 var patterns = includeFiles === "" ? DEFAULT_INCLUDE_FILES : includeFiles;
-var sourceDirectory = (inputs["cdk-app-dir"] ?? "") === "" ? process.env["GITHUB_WORKSPACE"] ?? process.cwd() : inputs["cdk-app-dir"];
+var sourceDirectory = inputs["cdk-app-dir"] === "" ? process.env["GITHUB_WORKSPACE"] ?? process.cwd() : inputs["cdk-app-dir"];
 if (!existsSync(join2(sourceDirectory, "cdk.json"))) {
   fail(`No cdk.json file found in '${sourceDirectory}'. You may need to set the 'cdk-app-dir' input.`);
 }

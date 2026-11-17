@@ -1,19 +1,23 @@
 import { fail, mask, runningInActions, writeOutputs } from "../../lib/actions.ts"
+import { collectInputs } from "../../lib/inputs.ts"
 import { buildBody, parseTarget, post } from "../../lib/slack.ts"
 
-const input = (name: string): string =>
-  process.env[`INPUT_${name.toUpperCase()}`] ??
-  process.env[`INPUT_${name.toUpperCase().replace(/-/g, "_")}`] ??
-  ""
+const inputs = collectInputs(process.env, [
+  "bot-token",
+  "incoming-webhook-url",
+  "channel",
+  "dry-run",
+  "payload",
+])
 
-const botToken = input("bot-token")
-const incomingWebhookUrl = input("incoming-webhook-url")
+const botToken = inputs["bot-token"]
+const incomingWebhookUrl = inputs["incoming-webhook-url"]
 mask(botToken)
 mask(incomingWebhookUrl)
 
 let parsed: unknown
 try {
-  parsed = JSON.parse(input("payload"))
+  parsed = JSON.parse(inputs["payload"])
 } catch {
   fail("Failed to parse payload as JSON")
 }
@@ -24,13 +28,13 @@ if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 }
 const payload: object = parsed
 
-const channel = input("channel")
+const channel = inputs["channel"]
 const target = parseTarget(botToken, incomingWebhookUrl, channel)
 if (!target.ok) fail(target.error)
 
 const body = buildBody(payload, channel)
 
-if (input("dry-run") === "true") {
+if (inputs["dry-run"] === "true") {
   process.stdout.write("Dry run, so the payload was built but not sent\n")
   if (runningInActions()) writeOutputs([{ name: "payload", value: body }])
   else process.stdout.write(`${body}\n`)

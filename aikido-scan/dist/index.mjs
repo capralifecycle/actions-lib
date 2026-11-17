@@ -1,6 +1,5 @@
 // aikido-scan/src/main.ts
 import { spawn } from "node:child_process";
-import { parseArgs } from "node:util";
 
 // lib/actions.ts
 import { appendFileSync } from "node:fs";
@@ -33,9 +32,41 @@ function mask(value) {
 `);
 }
 
+// lib/inputs.ts
+import { parseArgs } from "node:util";
+
 // lib/result.ts
 var ok = (value) => ({ ok: true, value });
 var err = (error) => ({ ok: false, error });
+
+// lib/inputs.ts
+function collectInputs(environment, names) {
+  const lookup = (name) => {
+    const upper = name.toUpperCase();
+    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
+  };
+  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
+}
+function parseFlags(args, names) {
+  try {
+    const { values } = parseArgs({
+      args: [...args],
+      options: Object.fromEntries(names.map((name) => [name, { type: "string", default: "" }]))
+    });
+    return ok(values);
+  } catch (cause) {
+    return err(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+function readInputs(names, localOnly = []) {
+  if (runningInActions()) {
+    return collectInputs(process.env, names);
+  }
+  const flags = parseFlags(process.argv.slice(2), [...names, ...localOnly]);
+  if (!flags.ok)
+    fail(flags.error);
+  return flags.value;
+}
 
 // lib/slack.ts
 var POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage";
@@ -122,13 +153,6 @@ var runContextFromArgs = (values) => ({
   runId: values["run-id"] ?? ""
 });
 var isTrue = (value) => value === "true";
-function collectInputs(environment, names) {
-  const lookup = (name) => {
-    const upper = name.toUpperCase();
-    return environment[`INPUT_${upper}`] ?? environment[`INPUT_${upper.replace(/-/g, "_")}`] ?? "";
-  };
-  return Object.fromEntries(names.map((name) => [name, lookup(name)]));
-}
 function parseInputs(raw) {
   const value = (name) => raw[name] ?? "";
   const notifySlack = isTrue(value("notify-slack"));
@@ -248,20 +272,6 @@ var INPUT_NAMES = [
   "channel"
 ];
 var inActions = runningInActions();
-var rawFromEnvironment = () => collectInputs(process.env, INPUT_NAMES);
-function valuesFromArgv() {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries([...INPUT_NAMES, ...CONTEXT_NAMES].map((name) => [
-        name,
-        { type: "string", default: "" }
-      ]))
-    });
-    return values;
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
-  }
-}
 function runScan(args) {
   return new Promise((resolve) => {
     const child = spawn(CLIENT_COMMAND, args, {
@@ -287,11 +297,10 @@ async function postToSlack(payload, inputs) {
   if (!sent.ok)
     fail(sent.error);
 }
-var argv = inActions ? undefined : valuesFromArgv();
-var raw = argv ?? rawFromEnvironment();
-var context = argv ? runContextFromArgs(argv) : runContextFromEnvironment(process.env);
-mask(raw["apikey"] ?? "");
-mask(raw["bot-token"] ?? "");
+var raw = readInputs(INPUT_NAMES, CONTEXT_NAMES);
+var context = inActions ? runContextFromEnvironment(process.env) : runContextFromArgs(raw);
+mask(raw["apikey"]);
+mask(raw["bot-token"]);
 var inputs = parseInputs(raw);
 if (!inputs.ok)
   fail(inputs.error);

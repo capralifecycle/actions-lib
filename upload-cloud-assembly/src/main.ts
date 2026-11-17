@@ -2,9 +2,9 @@ import { spawn } from "node:child_process"
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { parseArgs } from "node:util"
 
 import { fail, runningInActions, writeOutputs } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { sha256, zipDirectory } from "../../lib/archive.ts"
 import { putObject } from "../../lib/aws.ts"
 import { buildMetadata, renderMetadata } from "./assembly.ts"
@@ -12,32 +12,6 @@ import { buildMetadata, renderMetadata } from "./assembly.ts"
 const INPUT_NAMES = ["aws-s3-bucket-name", "cdk-app-dir"] as const
 
 const inActions = runningInActions()
-
-const fromEnvironment = (): Record<string, string> =>
-  Object.fromEntries(
-    INPUT_NAMES.map((name) => {
-      const upper = name.toUpperCase()
-      return [
-        name,
-        process.env[`INPUT_${upper}`] ??
-          process.env[`INPUT_${upper.replace(/-/g, "_")}`] ??
-          "",
-      ]
-    }),
-  )
-
-function fromArgv(): Record<string, string> {
-  try {
-    const { values } = parseArgs({
-      options: Object.fromEntries(
-        INPUT_NAMES.map((name) => [name, { type: "string", default: "" }]),
-      ),
-    })
-    return values as Record<string, string>
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-}
 
 /** Runs the CDK CLI, letting its output through as it arrives. */
 function synth(directory: string): Promise<number> {
@@ -51,15 +25,15 @@ function synth(directory: string): Promise<number> {
   })
 }
 
-const inputs = inActions ? fromEnvironment() : fromArgv()
+const inputs = readInputs(INPUT_NAMES)
 
-const bucket = inputs["aws-s3-bucket-name"] ?? ""
+const bucket = inputs["aws-s3-bucket-name"]
 if (bucket === "") fail("Parameter 'aws-s3-bucket-name' is empty")
 
 const appDirectory =
-  (inputs["cdk-app-dir"] ?? "") === ""
+  inputs["cdk-app-dir"] === ""
     ? (process.env["GITHUB_WORKSPACE"] ?? process.cwd())
-    : (inputs["cdk-app-dir"] as string)
+    : inputs["cdk-app-dir"]
 
 if (!existsSync(join(appDirectory, "cdk.json"))) {
   fail(

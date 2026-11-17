@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs"
-import { parseArgs } from "node:util"
 
 import {
   fail,
@@ -7,38 +6,13 @@ import {
   runningInActions,
   writeOutputs,
 } from "../../lib/actions.ts"
+import { readInputs } from "../../lib/inputs.ts"
 import { parseConfig } from "./config.ts"
 
 const inActions = runningInActions()
 
-interface Source {
-  readonly config: string
-  readonly configFile: string
-}
-
-// GitHub upper-cases input names but leaves their hyphens intact.
-const sourceFromEnvironment = (): Source => ({
-  config: process.env["INPUT_CONFIG"] ?? "",
-  configFile: process.env["INPUT_CONFIG-FILE"] ?? "",
-})
-
-function sourceFromArgv(): Source {
-  let values
-  try {
-    ;({ values } = parseArgs({
-      options: {
-        config: { type: "string", default: "" },
-        "config-file": { type: "string", default: "" },
-      },
-    }))
-  } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause))
-  }
-  return { config: values.config, configFile: values["config-file"] }
-}
-
 /** `config` wins over `config-file`; the two inputs are mutually exclusive. */
-function read({ config, configFile }: Source): string {
+function read(config: string, configFile: string): string {
   if (config !== "") return config
   if (configFile === "") {
     fail("No configuration or configuration file supplied")
@@ -50,9 +24,9 @@ function read({ config, configFile }: Source): string {
   return readFileSync(configFile, "utf8")
 }
 
-const source = inActions ? sourceFromEnvironment() : sourceFromArgv()
+const inputs = readInputs(["config", "config-file"])
 
-const outputs = parseConfig(read(source))
+const outputs = parseConfig(read(inputs.config, inputs["config-file"]))
 if (!outputs.ok) fail(outputs.error)
 
 if (inActions) {

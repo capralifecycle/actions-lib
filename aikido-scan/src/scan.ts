@@ -61,7 +61,7 @@ export function runContextFromEnvironment(
 }
 
 export const runContextFromArgs = (
-  values: Readonly<Record<string, string>>,
+  values: Readonly<Record<string, string | undefined>>,
 ): RunContext => ({
   serverUrl: values["server-url"] ?? "",
   repositoryFullName: values["repository-full-name"] ?? "",
@@ -76,26 +76,6 @@ export interface Findings {
 }
 
 const isTrue = (value: string): boolean => value === "true"
-
-/**
- * GitHub sets `INPUT_COMMIT-SHA` for an action on the node runtime, while a
- * composite step has to name the variable itself and underscores are the safer
- * spelling there. Accept both so the runtime can change without touching this.
- */
-export function collectInputs(
-  environment: Readonly<Record<string, string | undefined>>,
-  names: readonly string[],
-): Record<string, string> {
-  const lookup = (name: string): string => {
-    const upper = name.toUpperCase()
-    return (
-      environment[`INPUT_${upper}`] ??
-      environment[`INPUT_${upper.replace(/-/g, "_")}`] ??
-      ""
-    )
-  }
-  return Object.fromEntries(names.map((name) => [name, lookup(name)]))
-}
 
 export function parseInputs(raw: Readonly<Record<string, string>>): Result<Inputs> {
   const value = (name: string): string => raw[name] ?? ""

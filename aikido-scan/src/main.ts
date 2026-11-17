@@ -19,7 +19,7 @@ import {
   parseScanLog,
   runContextFromArgs,
   runContextFromEnvironment,
-  scanFailed,
+  scanOutcome,
   shouldNotify,
 } from "./scan.ts"
 import { type SlackPayload, buildSlackPayload } from "./slack.ts"
@@ -119,12 +119,13 @@ process.stdout.write(
 )
 
 const { exitCode, log } = await runScan(args)
+const outcome = scanOutcome(exitCode)
 const findings = parseScanLog(log)
 
 let slackNotified = false
 let payload: SlackPayload | undefined
 
-if (shouldNotify(exitCode, inputs.value)) {
+if (shouldNotify(outcome, inputs.value)) {
   payload = buildSlackPayload(
     inputs.value.scan.repository,
     inputs.value.scan.commitSha,
@@ -150,18 +151,25 @@ if (inActions) {
   writeOutputs(outputs)
 }
 
-if (!scanFailed(exitCode)) {
-  process.stdout.write("Aikido scan found no new issues\n")
-  process.exit(0)
+switch (outcome) {
+  case "clean":
+    process.stdout.write("Aikido scan found no new issues\n")
+    break
+  case "findings":
+    process.stdout.write(
+      `Aikido scan found ${findings.issues} issue(s)` +
+        `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}\n`,
+    )
+    if (!inputs.value.failsOnAnyFinding) {
+      process.stdout.write(
+        "'fails-on-any-finding' is disabled, so the action will not fail\n",
+      )
+    }
+    break
+  case "error":
+    process.stderr.write(
+      `'${CLIENT_COMMAND}' failed with exit code ${exitCode} before the scan completed\n`,
+    )
+    break
 }
-
-process.stdout.write(
-  `Aikido scan found ${findings.issues} issue(s) (exit code ${exitCode})` +
-    `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}\n`,
-)
-if (!inputs.value.failsOnAnyFinding) {
-  process.stdout.write(
-    "'fails-on-any-finding' is disabled, so the action will not fail\n",
-  )
-}
-process.exit(exitCodeFor(exitCode, inputs.value.failsOnAnyFinding))
+process.exit(exitCodeFor(outcome, exitCode, inputs.value.failsOnAnyFinding))

@@ -553,6 +553,27 @@ jobs:
           ASSERT_EXPECTED: "failure"
           ASSERT_GOT: ${{ steps.act-aikido-scan-missing-required-input-should-fail.outcome }}
         run: test "$ASSERT_GOT" = "$ASSERT_EXPECTED"
+      # 'fails-on-any-finding' is left at its default of 'false', which covers
+      # findings only: a scan that never ran must not pass as a clean one.
+      - uses: ./aikido-scan
+        name: act-aikido-scan-rejected-apikey-should-fail
+        id: act-aikido-scan-rejected-apikey-should-fail
+        continue-on-error: true
+        with:
+          apikey: "not-a-valid-key"
+          notify-slack: "false"
+      - name: assert-aikido-scan-rejected-apikey-should-fail
+        id: assert-aikido-scan-rejected-apikey-should-fail
+        env:
+          ASSERT_EXPECTED_OUTCOME: "failure"
+          ASSERT_GOT_OUTCOME: ${{ steps.act-aikido-scan-rejected-apikey-should-fail.outcome }}
+          ASSERT_GOT_EXIT_CODE: ${{ steps.act-aikido-scan-rejected-apikey-should-fail.outputs.scan-exit-code }}
+          ASSERT_GOT_SLACK_NOTIFIED: ${{ steps.act-aikido-scan-rejected-apikey-should-fail.outputs.slack-notified }}
+        run: |
+          test "$ASSERT_GOT_OUTCOME" = "$ASSERT_EXPECTED_OUTCOME"
+          test "$ASSERT_GOT_EXIT_CODE" != "0"
+          test "$ASSERT_GOT_EXIT_CODE" != "10"
+          test "$ASSERT_GOT_SLACK_NOTIFIED" = "false"
       ######################################################
       #
       # test: upload-cdk-source

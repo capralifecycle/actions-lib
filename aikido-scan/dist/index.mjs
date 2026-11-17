@@ -136,7 +136,8 @@ function buildScanArgs(request) {
     request.repository,
     request.commitSha,
     "--apikey",
-    request.apikey
+    request.apikey,
+    "--plain-output"
   ];
   if (request.minSeverityLevel !== "") {
     args.push("--minimum-severity-level", request.minSeverityLevel);
@@ -159,9 +160,25 @@ function parseScanLog(log) {
     diffUrl: diffUrl ? diffUrl[1] : ""
   };
 }
-var scanFailed = (exitCode) => exitCode !== 0;
-var shouldNotify = (exitCode, inputs) => scanFailed(exitCode) && inputs.notifySlack;
-var exitCodeFor = (scanExitCode, failsOnAnyFinding) => failsOnAnyFinding ? scanExitCode : 0;
+var GATE_FAILED_EXIT_CODE = 10;
+function scanOutcome(exitCode) {
+  if (exitCode === 0)
+    return "clean";
+  if (exitCode === GATE_FAILED_EXIT_CODE)
+    return "findings";
+  return "error";
+}
+var shouldNotify = (outcome, inputs) => outcome === "findings" && inputs.notifySlack;
+function exitCodeFor(outcome, clientExitCode, failsOnAnyFinding) {
+  switch (outcome) {
+    case "clean":
+      return 0;
+    case "findings":
+      return failsOnAnyFinding ? clientExitCode : 0;
+    case "error":
+      return clientExitCode;
+  }
+}
 
 // aikido-scan/src/slack.ts
 var SHORT_SHA_LENGTH = 7;
@@ -170,12 +187,13 @@ function buildSlackPayload(repository, commitSha, findings, context) {
   const shortSha = commitSha.slice(0, SHORT_SHA_LENGTH);
   const commitUrl = `${context.serverUrl}/${context.repositoryFullName}/commit/${commitSha}`;
   const runUrl = `${context.serverUrl}/${context.repositoryFullName}/actions/runs/${context.runId}`;
+  const hasReport = findings.diffUrl !== "";
   return {
-    text: `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues: ${findings.diffUrl}`,
+    text: `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues` + (hasReport ? `: ${findings.diffUrl}` : ""),
     blocks: [
       {
         type: "section",
-        text: mrkdwn(`:shield: Aikido scan found *${findings.issues}* issues on *${repository}* — <${findings.diffUrl}|View in Aikido>`)
+        text: mrkdwn(`:shield: Aikido scan found *${findings.issues}* issues on *${repository}*` + (hasReport ? ` — <${findings.diffUrl}|View in Aikido>` : ""))
       },
       {
         type: "context",
@@ -255,10 +273,11 @@ var args = buildScanArgs(inputs.value.scan);
 process.stdout.write(`Scanning ${inputs.value.scan.repository} at ${inputs.value.scan.commitSha}
 `);
 var { exitCode, log } = await runScan(args);
+var outcome = scanOutcome(exitCode);
 var findings = parseScanLog(log);
 var slackNotified = false;
 var payload;
-if (shouldNotify(exitCode, inputs.value)) {
+if (shouldNotify(outcome, inputs.value)) {
   payload = buildSlackPayload(inputs.value.scan.repository, inputs.value.scan.commitSha, findings, context);
   await postToSlack(payload, inputs.value);
   slackNotified = true;
@@ -277,15 +296,22 @@ if (payload !== undefined) {
 if (inActions) {
   writeOutputs(outputs);
 }
-if (!scanFailed(exitCode)) {
-  process.stdout.write(`Aikido scan found no new issues
+switch (outcome) {
+  case "clean":
+    process.stdout.write(`Aikido scan found no new issues
 `);
-  process.exit(0);
+    break;
+  case "findings":
+    process.stdout.write(`Aikido scan found ${findings.issues} issue(s)` + `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}
+`);
+    if (!inputs.value.failsOnAnyFinding) {
+      process.stdout.write(`'fails-on-any-finding' is disabled, so the action will not fail
+`);
+    }
+    break;
+  case "error":
+    process.stderr.write(`'${CLIENT_COMMAND}' failed with exit code ${exitCode} before the scan completed
+`);
+    break;
 }
-process.stdout.write(`Aikido scan found ${findings.issues} issue(s) (exit code ${exitCode})` + `${findings.diffUrl === "" ? "" : `: ${findings.diffUrl}`}
-`);
-if (!inputs.value.failsOnAnyFinding) {
-  process.stdout.write(`'fails-on-any-finding' is disabled, so the action will not fail
-`);
-}
-process.exit(exitCodeFor(exitCode, inputs.value.failsOnAnyFinding));
+process.exit(exitCodeFor(outcome, exitCode, inputs.value.failsOnAnyFinding));

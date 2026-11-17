@@ -9,6 +9,7 @@ import {
   parseScanLog,
   runContextFromArgs,
   runContextFromEnvironment,
+  scanOutcome,
   shouldNotify,
 } from "./scan.ts"
 import { buildSlackPayload } from "./slack.ts"
@@ -19,6 +20,7 @@ import { buildSlackPayload } from "./slack.ts"
  */
 const CLIENT_OPTIONS = [
   "--apikey",
+  "--plain-output",
   "--minimum-severity-level",
   "--fail-on-sast-scan",
   "--fail-on-iac-scan",
@@ -118,6 +120,10 @@ describe("scan arguments", () => {
     ])
   })
 
+  test("turn off colour, which would split the log lines the counts are read from", () => {
+    expect(buildScanArgs(inputs().scan)).toContain("--plain-output")
+  })
+
   test("pass the minimum severity level when one is given", () => {
     expect(buildScanArgs(inputs().scan)).toContain("--minimum-severity-level")
     expect(buildScanArgs(inputs({ "min-severity-level": "" }).scan)).not.toContain(
@@ -188,18 +194,47 @@ describe("reading the client's output", () => {
   })
 })
 
-describe("what the action does with a failing scan", () => {
-  test("notifies Slack only when the scan failed and notification is on", () => {
-    expect(shouldNotify(1, inputs({ "notify-slack": "true", "bot-token": "t", channel: "#c" }))).toBe(true)
-    expect(shouldNotify(0, inputs({ "notify-slack": "true", "bot-token": "t", channel: "#c" }))).toBe(false)
-    expect(shouldNotify(1, inputs())).toBe(false)
+describe("the client's exit code", () => {
+  test.each([
+    [0, "clean"],
+    [10, "findings"],
+    [1, "error"],
+    [2, "error"],
+    [127, "error"],
+  ] as const)("%i reads as %s", (code, expected) => {
+    expect(scanOutcome(code)).toBe(expected)
+  })
+})
+
+describe("what the action does with the outcome", () => {
+  const notifying = inputs({ "notify-slack": "true", "bot-token": "t", channel: "#c" })
+
+  test("notifies Slack of findings when notification is on", () => {
+    expect(shouldNotify("findings", notifying)).toBe(true)
+    expect(shouldNotify("findings", inputs())).toBe(false)
   })
 
-  test("keeps the job green unless the caller asked to fail on findings", () => {
-    expect(exitCodeFor(3, false)).toBe(0)
-    expect(exitCodeFor(3, true)).toBe(3)
-    expect(exitCodeFor(0, true)).toBe(0)
+  test("does not notify Slack of a clean scan", () => {
+    expect(shouldNotify("clean", notifying)).toBe(false)
   })
+
+  test("does not report a scan that never completed as findings", () => {
+    expect(shouldNotify("error", notifying)).toBe(false)
+  })
+
+  test.each([
+    ["clean", 0, false, 0],
+    ["clean", 0, true, 0],
+    ["findings", 10, false, 0],
+    ["findings", 10, true, 10],
+    ["error", 1, false, 1],
+    ["error", 1, true, 1],
+  ] as const)(
+    "exits a %s scan (client exit %i, fails-on-any-finding %p) with %i",
+    (outcome, clientExitCode, failsOnAnyFinding, expected) => {
+      expect(exitCodeFor(outcome, clientExitCode, failsOnAnyFinding)).toBe(expected)
+    },
+  )
 })
 
 describe("the Slack payload", () => {
@@ -228,6 +263,12 @@ describe("the Slack payload", () => {
     expect(payload.blocks[0]?.text?.text).toBe(
       ":shield: Aikido scan found *3* issues on *my-repo* — <https://app.aikido.dev/x/1|View in Aikido>",
     )
+  })
+
+  test("leaves out the report link when the client printed no diff URL", () => {
+    const withoutUrl = buildSlackPayload("my-repo", "abcdef1234567890", { issues: 3, diffUrl: "" }, context)
+    expect(withoutUrl.text).toBe("Aikido scan on my-repo (abcdef1) found 3 issues")
+    expect(withoutUrl.blocks[0]?.text?.text).toBe(":shield: Aikido scan found *3* issues on *my-repo*")
   })
 
   test("links the commit and the workflow run from the context line", () => {

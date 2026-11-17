@@ -30,14 +30,18 @@ export function buildSlackPayload(
   const shortSha = commitSha.slice(0, SHORT_SHA_LENGTH)
   const commitUrl = `${context.serverUrl}/${context.repositoryFullName}/commit/${commitSha}`
   const runUrl = `${context.serverUrl}/${context.repositoryFullName}/actions/runs/${context.runId}`
+  const hasReport = findings.diffUrl !== ""
 
   return {
-    text: `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues: ${findings.diffUrl}`,
+    text:
+      `Aikido scan on ${repository} (${shortSha}) found ${findings.issues} issues` +
+      (hasReport ? `: ${findings.diffUrl}` : ""),
     blocks: [
       {
         type: "section",
         text: mrkdwn(
-          `:shield: Aikido scan found *${findings.issues}* issues on *${repository}* — <${findings.diffUrl}|View in Aikido>`,
+          `:shield: Aikido scan found *${findings.issues}* issues on *${repository}*` +
+            (hasReport ? ` — <${findings.diffUrl}|View in Aikido>` : ""),
         ),
       },
       {

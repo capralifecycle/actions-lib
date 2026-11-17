@@ -2,9 +2,7 @@
   "type": "module",
   "scripts": {
     "semantic-release": "semantic-release",
-    "upgrade-deps": "bun update --latest",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "upgrade-deps": "bun update --latest"
   },
   "overrides": {
     "semantic-release": {

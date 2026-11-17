@@ -59,10 +59,6 @@ lint-secrets:
 lint-workflows:
 	jactionlint --oneline
 
-.PHONY: lint-commit-msg
-lint-commit-msg:
-	$(SCRIPTS)/lint-commit-message.sh
-
 .PHONY: dist
 dist:
 	$(SCRIPTS)/build-dist.sh
@@ -82,11 +78,6 @@ docs:
 .PHONY: install-tools
 install-tools:
 	mise install
-	brew install shellcheck
-
-.PHONY: clean
-clean:
-	rm -rf dist
 
 .PHONY: clean-all
 clean-all:
@@ -94,4 +85,4 @@ clean-all:
 
 .PHONY: upgrade-deps
 upgrade-deps:
-	npm run upgrade-deps
+	bun run upgrade-deps

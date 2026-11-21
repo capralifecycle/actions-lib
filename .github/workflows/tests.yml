@@ -119,7 +119,7 @@ jobs:
           AWS_ACCOUNT_ID: ${{ steps.act-parse-config.outputs.accountId }}
         run: |
           docker run -d --name floci -p 4566:4566 \
-            floci/floci:2.4.0@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c
+            floci/floci:2.5.0@sha256:a0fbf944d7f338cc0856f1ef83831ea749ff2be71956eb7a7fce08fc21458e19
 
           if ! curl -fsS --retry 60 --retry-delay 1 --retry-all-errors -o /dev/null http://localhost:4566/_floci/health; then
             echo "Floci failed to start"

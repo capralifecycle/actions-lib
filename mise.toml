@@ -5,5 +5,4 @@ jactionlint = "v2.6.0"
 shellcheck = "0.11.0"
 
 [settings]
-lockfile_platforms = ["linux-x64", "macos-arm64"]
 idiomatic_version_file_enable_tools = ["bun", "node"]

@@ -30,11 +30,7 @@ ci:
 INSTALL_FLAGS ?=
 
 .PHONY: build
-build: install lock-tools dist docs
-
-.PHONY: lock-tools
-lock-tools:
-	mise lock
+build: install dist docs
 
 .PHONY: install
 install:

@@ -2,7 +2,7 @@ amends "package://github.com/jdx/hk/releases/download/v2.13.0/hk@2.13.0#/Config.
 import "package://github.com/jdx/hk/releases/download/v2.13.0/hk@2.13.0#/Builtins.pkl"
 
 // Written by `make`, never by hand, so formatting them would only make them drift.
-local generated = List("*/dist/**", "bun.lock", "mise.lock")
+local generated = List("*/dist/**", "bun.lock")
 
 local linters = new Mapping<String, Step | Group> {
   ["merge-conflict"] = (Builtins.check_merge_conflict) { exclude = generated }

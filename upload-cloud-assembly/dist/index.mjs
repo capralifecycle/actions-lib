@@ -11678,6 +11678,7 @@ var require_es5 = __commonJS(function(exports, module) {
 // node_modules/@aws-sdk/core/dist-cjs/submodules/client/index.js
 var require_client2 = __commonJS(function(exports) {
   var { HttpRequest, parseUrl } = require_protocols();
+  var { NoOpLogger } = require_client();
   var { InvokeStore } = require_invoke_store();
   var { normalizeProvider } = require_dist_cjs2();
   var { RETRY_MODES } = require_retry();
@@ -11804,18 +11805,22 @@ More information can be found at: https://a.co/c895JFp`);
   var loggerMiddleware = () => (next, context) => async (args) => {
     try {
       const response = await next(args);
-      const { clientName, commandName, logger, dynamoDbDocumentClientOptions = {} } = context;
-      const { overrideInputFilterSensitiveLog, overrideOutputFilterSensitiveLog } = dynamoDbDocumentClientOptions;
-      const inputFilterSensitiveLog = overrideInputFilterSensitiveLog ?? context.inputFilterSensitiveLog;
-      const outputFilterSensitiveLog = overrideOutputFilterSensitiveLog ?? context.outputFilterSensitiveLog;
-      const { $metadata, ...outputWithoutMetadata } = response.output;
-      logger?.info?.({
-        clientName,
-        commandName,
-        input: inputFilterSensitiveLog(args.input),
-        output: outputFilterSensitiveLog(outputWithoutMetadata),
-        metadata: $metadata
-      });
+      const { logger } = context;
+      const isNoOpLogger = logger instanceof NoOpLogger;
+      if (logger && !isNoOpLogger) {
+        const { clientName, commandName, dynamoDbDocumentClientOptions = {} } = context;
+        const { overrideInputFilterSensitiveLog, overrideOutputFilterSensitiveLog } = dynamoDbDocumentClientOptions;
+        const inputFilterSensitiveLog = overrideInputFilterSensitiveLog ?? context.inputFilterSensitiveLog;
+        const outputFilterSensitiveLog = overrideOutputFilterSensitiveLog ?? context.outputFilterSensitiveLog;
+        const { $metadata, ...outputWithoutMetadata } = response.output;
+        logger.info?.({
+          clientName,
+          commandName,
+          input: inputFilterSensitiveLog(args.input),
+          output: outputFilterSensitiveLog(outputWithoutMetadata),
+          metadata: $metadata
+        });
+      }
       return response;
     } catch (error) {
       const { clientName, commandName, logger, dynamoDbDocumentClientOptions = {} } = context;
@@ -49326,7 +49331,7 @@ var require_sso_oidc = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -50257,7 +50262,7 @@ var require_sso = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -51225,7 +51230,7 @@ var require_sts = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -52006,7 +52011,7 @@ var require_signin = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -57438,6 +57443,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _NVT = "NoncurrentVersionTransitions";
   var _NVTL = "NoncurrentVersionTransitionList";
   var _NVTo = "NoncurrentVersionTransition";
+  var _No = "Not";
   var _O = "Owner";
   var _OA = "ObjectAttributes";
   var _OAIATE = "ObjectAlreadyInActiveTierError";
@@ -57478,6 +57484,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _OVL = "ObjectVersionList";
   var _Ob = "Objects";
   var _Obj = "Object";
+  var _Or = "Or";
   var _P = "Prefix";
   var _PABC = "PublicAccessBlockConfiguration";
   var _PBA = "PutBucketAbac";
@@ -57559,6 +57566,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _Pe = "Permission";
   var _Po = "Policy";
   var _Pr = "Progress";
+  var _Pre = "Prefixes";
   var _Pri = "Priority";
   var _Pro = "Protocol";
   var _Q = "Quiet";
@@ -57598,10 +57606,13 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _RP = "RequestPayer";
   var _RPB = "RestrictPublicBuckets";
   var _RPC = "RequestPaymentConfiguration";
+  var _RPL = "ReplicationPrefixList";
   var _RPe = "RequestProgress";
   var _RR = "RoutingRules";
   var _RRAO = "ReplicationRuleAndOperator";
   var _RRF = "ReplicationRuleFilter";
+  var _RRNO = "ReplicationRuleNotOperator";
+  var _RROO = "ReplicationRuleOrOperator";
   var _RRe = "ReplicationRule";
   var _RRep = "ReplicationRules";
   var _RReq = "RequestRoute";
@@ -57733,6 +57744,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _UPO = "UploadPartOutput";
   var _UPR = "UploadPartRequest";
   var _URI = "URI";
+  var _USMRK = "UseSourceMultiRegionKey";
   var _Up = "Upload";
   var _V = "Value";
   var _VC = "VersioningConfiguration";
@@ -58167,8 +58179,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _AMUO,
     0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
+    [_RC, _VI],
+    [[0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var AbortMultipartUploadRequest$ = [
     3,
@@ -58480,8 +58492,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _CMUOr,
     { [_xN]: _IMUR },
-    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]]
+    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT, _VI],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }], [0, { [_hH]: _xavi }]]
   ];
   var CreateMultipartUploadRequest$ = [
     3,
@@ -58810,8 +58822,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _EC,
     0,
-    [_RKKID],
-    [0]
+    [_RKKID, _USMRK],
+    [0, () => UseSourceMultiRegionKey$]
   ];
   var EndEvent$ = [
     3,
@@ -59925,8 +59937,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _LPO,
     { [_xN]: _LPR },
-    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0]
+    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT, _VI],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0, [0, { [_hH]: _xavi }]]
   ];
   var ListPartsRequest$ = [
     3,
@@ -60038,8 +60050,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _MU,
     0,
-    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT],
-    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0]
+    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT, _VI],
+    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0, 0]
   ];
   var NoncurrentVersionExpiration$ = [
     3,
@@ -60635,16 +60647,32 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _RRAO,
     0,
-    [_P, _T],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
+    [_P, _T, _No],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], [() => ReplicationRuleNotOperator$, 0]]
   ];
   var ReplicationRuleFilter$ = [
     3,
     n0,
     _RRF,
     0,
-    [_P, _Ta, _An],
-    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0]]
+    [_P, _Ta, _An, _No],
+    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0], [() => ReplicationRuleNotOperator$, 0]]
+  ];
+  var ReplicationRuleNotOperator$ = [
+    3,
+    n0,
+    _RRNO,
+    0,
+    [_P, _Ta, _Or],
+    [0, () => Tag$, [() => ReplicationRuleOrOperator$, 0]]
+  ];
+  var ReplicationRuleOrOperator$ = [
+    3,
+    n0,
+    _RROO,
+    0,
+    [_Pre, _T],
+    [[() => ReplicationPrefixList, { [_xF]: 1, [_xN]: _P }], [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
   ];
   var ReplicationTime$ = [
     3,
@@ -61019,8 +61047,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _UPCO,
     0,
-    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC, _VI],
+    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var UploadPartCopyRequest$ = [
     3,
@@ -61036,8 +61064,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _UPO,
     0,
-    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC, _VI],
+    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var UploadPartRequest$ = [
     3,
@@ -61047,6 +61075,15 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     [_B, _K, _PN, _UI, _Bo, _CLo, _CMDo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
     [[0, 1], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [() => StreamingBlob, 16], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]],
     4
+  ];
+  var UseSourceMultiRegionKey$ = [
+    3,
+    n0,
+    _USMRK,
+    0,
+    [_S],
+    [0],
+    1
   ];
   var VersioningConfiguration$ = [
     3,
@@ -61306,6 +61343,16 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     [
       () => QueueConfiguration$,
       0
+    ]
+  ];
+  var ReplicationPrefixList = [
+    1,
+    n0,
+    _RPL,
+    0,
+    [
+      0,
+      { [_xN]: _P }
     ]
   ];
   var ReplicationRules = [
@@ -62323,7 +62370,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 
   class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
   }
-  var version = "3.1167.0";
+  var version = "3.1174.0";
   var packageInfo = {
     version
   };
@@ -63365,6 +63412,10 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     Disabled: "Disabled",
     Enabled: "Enabled"
   };
+  var UseSourceMultiRegionKeyStatus = {
+    Disabled: "Disabled",
+    Enabled: "Enabled"
+  };
   var MetricsStatus = {
     Disabled: "Disabled",
     Enabled: "Enabled"
@@ -64088,6 +64139,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   exports.ReplicationRule$ = ReplicationRule$;
   exports.ReplicationRuleAndOperator$ = ReplicationRuleAndOperator$;
   exports.ReplicationRuleFilter$ = ReplicationRuleFilter$;
+  exports.ReplicationRuleNotOperator$ = ReplicationRuleNotOperator$;
+  exports.ReplicationRuleOrOperator$ = ReplicationRuleOrOperator$;
   exports.ReplicationRuleStatus = ReplicationRuleStatus;
   exports.ReplicationStatus = ReplicationStatus;
   exports.ReplicationTime$ = ReplicationTime$;
@@ -64178,6 +64231,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   exports.UploadPartCopyRequest$ = UploadPartCopyRequest$;
   exports.UploadPartOutput$ = UploadPartOutput$;
   exports.UploadPartRequest$ = UploadPartRequest$;
+  exports.UseSourceMultiRegionKey$ = UseSourceMultiRegionKey$;
+  exports.UseSourceMultiRegionKeyStatus = UseSourceMultiRegionKeyStatus;
   exports.VersioningConfiguration$ = VersioningConfiguration$;
   exports.WebsiteConfiguration$ = WebsiteConfiguration$;
   exports.WriteGetObjectResponse$ = WriteGetObjectResponse$;
@@ -65366,6 +65421,7 @@ class Upload extends EventEmitter {
         ETag: partResult.ETag,
         ...partResult.ChecksumCRC32 && { ChecksumCRC32: partResult.ChecksumCRC32 },
         ...partResult.ChecksumCRC32C && { ChecksumCRC32C: partResult.ChecksumCRC32C },
+        ...partResult.ChecksumCRC64NVME && { ChecksumCRC64NVME: partResult.ChecksumCRC64NVME },
         ...partResult.ChecksumSHA1 && { ChecksumSHA1: partResult.ChecksumSHA1 },
         ...partResult.ChecksumSHA256 && { ChecksumSHA256: partResult.ChecksumSHA256 }
       });

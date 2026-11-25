@@ -11678,6 +11678,7 @@ var require_es5 = __commonJS(function(exports, module) {
 // node_modules/@aws-sdk/core/dist-cjs/submodules/client/index.js
 var require_client2 = __commonJS(function(exports) {
   var { HttpRequest, parseUrl } = require_protocols();
+  var { NoOpLogger } = require_client();
   var { InvokeStore } = require_invoke_store();
   var { normalizeProvider } = require_dist_cjs2();
   var { RETRY_MODES } = require_retry();
@@ -11804,18 +11805,22 @@ More information can be found at: https://a.co/c895JFp`);
   var loggerMiddleware = () => (next, context) => async (args) => {
     try {
       const response = await next(args);
-      const { clientName, commandName, logger, dynamoDbDocumentClientOptions = {} } = context;
-      const { overrideInputFilterSensitiveLog, overrideOutputFilterSensitiveLog } = dynamoDbDocumentClientOptions;
-      const inputFilterSensitiveLog = overrideInputFilterSensitiveLog ?? context.inputFilterSensitiveLog;
-      const outputFilterSensitiveLog = overrideOutputFilterSensitiveLog ?? context.outputFilterSensitiveLog;
-      const { $metadata, ...outputWithoutMetadata } = response.output;
-      logger?.info?.({
-        clientName,
-        commandName,
-        input: inputFilterSensitiveLog(args.input),
-        output: outputFilterSensitiveLog(outputWithoutMetadata),
-        metadata: $metadata
-      });
+      const { logger } = context;
+      const isNoOpLogger = logger instanceof NoOpLogger;
+      if (logger && !isNoOpLogger) {
+        const { clientName, commandName, dynamoDbDocumentClientOptions = {} } = context;
+        const { overrideInputFilterSensitiveLog, overrideOutputFilterSensitiveLog } = dynamoDbDocumentClientOptions;
+        const inputFilterSensitiveLog = overrideInputFilterSensitiveLog ?? context.inputFilterSensitiveLog;
+        const outputFilterSensitiveLog = overrideOutputFilterSensitiveLog ?? context.outputFilterSensitiveLog;
+        const { $metadata, ...outputWithoutMetadata } = response.output;
+        logger.info?.({
+          clientName,
+          commandName,
+          input: inputFilterSensitiveLog(args.input),
+          output: outputFilterSensitiveLog(outputWithoutMetadata),
+          metadata: $metadata
+        });
+      }
       return response;
     } catch (error) {
       const { clientName, commandName, logger, dynamoDbDocumentClientOptions = {} } = context;
@@ -49326,7 +49331,7 @@ var require_sso_oidc = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -50257,7 +50262,7 @@ var require_sso = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -51225,7 +51230,7 @@ var require_sts = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -52006,7 +52011,7 @@ var require_signin = __commonJS(function(exports) {
     Region: { type: "builtInParams", name: "region" },
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
   };
-  var version = "3.998.2";
+  var version = "3.998.3";
   var packageInfo = {
     version
   };
@@ -57438,6 +57443,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _NVT = "NoncurrentVersionTransitions";
   var _NVTL = "NoncurrentVersionTransitionList";
   var _NVTo = "NoncurrentVersionTransition";
+  var _No = "Not";
   var _O = "Owner";
   var _OA = "ObjectAttributes";
   var _OAIATE = "ObjectAlreadyInActiveTierError";
@@ -57478,6 +57484,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _OVL = "ObjectVersionList";
   var _Ob = "Objects";
   var _Obj = "Object";
+  var _Or = "Or";
   var _P = "Prefix";
   var _PABC = "PublicAccessBlockConfiguration";
   var _PBA = "PutBucketAbac";
@@ -57559,6 +57566,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _Pe = "Permission";
   var _Po = "Policy";
   var _Pr = "Progress";
+  var _Pre = "Prefixes";
   var _Pri = "Priority";
   var _Pro = "Protocol";
   var _Q = "Quiet";
@@ -57598,10 +57606,13 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _RP = "RequestPayer";
   var _RPB = "RestrictPublicBuckets";
   var _RPC = "RequestPaymentConfiguration";
+  var _RPL = "ReplicationPrefixList";
   var _RPe = "RequestProgress";
   var _RR = "RoutingRules";
   var _RRAO = "ReplicationRuleAndOperator";
   var _RRF = "ReplicationRuleFilter";
+  var _RRNO = "ReplicationRuleNotOperator";
+  var _RROO = "ReplicationRuleOrOperator";
   var _RRe = "ReplicationRule";
   var _RRep = "ReplicationRules";
   var _RReq = "RequestRoute";
@@ -57733,6 +57744,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   var _UPO = "UploadPartOutput";
   var _UPR = "UploadPartRequest";
   var _URI = "URI";
+  var _USMRK = "UseSourceMultiRegionKey";
   var _Up = "Upload";
   var _V = "Value";
   var _VC = "VersioningConfiguration";
@@ -58167,8 +58179,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _AMUO,
     0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
+    [_RC, _VI],
+    [[0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var AbortMultipartUploadRequest$ = [
     3,
@@ -58480,8 +58492,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _CMUOr,
     { [_xN]: _IMUR },
-    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]]
+    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT, _VI],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }], [0, { [_hH]: _xavi }]]
   ];
   var CreateMultipartUploadRequest$ = [
     3,
@@ -58810,8 +58822,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _EC,
     0,
-    [_RKKID],
-    [0]
+    [_RKKID, _USMRK],
+    [0, () => UseSourceMultiRegionKey$]
   ];
   var EndEvent$ = [
     3,
@@ -59925,8 +59937,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _LPO,
     { [_xN]: _LPR },
-    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0]
+    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT, _VI],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0, [0, { [_hH]: _xavi }]]
   ];
   var ListPartsRequest$ = [
     3,
@@ -60038,8 +60050,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _MU,
     0,
-    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT],
-    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0]
+    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT, _VI],
+    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0, 0]
   ];
   var NoncurrentVersionExpiration$ = [
     3,
@@ -60635,16 +60647,32 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _RRAO,
     0,
-    [_P, _T],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
+    [_P, _T, _No],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], [() => ReplicationRuleNotOperator$, 0]]
   ];
   var ReplicationRuleFilter$ = [
     3,
     n0,
     _RRF,
     0,
-    [_P, _Ta, _An],
-    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0]]
+    [_P, _Ta, _An, _No],
+    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0], [() => ReplicationRuleNotOperator$, 0]]
+  ];
+  var ReplicationRuleNotOperator$ = [
+    3,
+    n0,
+    _RRNO,
+    0,
+    [_P, _Ta, _Or],
+    [0, () => Tag$, [() => ReplicationRuleOrOperator$, 0]]
+  ];
+  var ReplicationRuleOrOperator$ = [
+    3,
+    n0,
+    _RROO,
+    0,
+    [_Pre, _T],
+    [[() => ReplicationPrefixList, { [_xF]: 1, [_xN]: _P }], [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
   ];
   var ReplicationTime$ = [
     3,
@@ -61019,8 +61047,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _UPCO,
     0,
-    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC, _VI],
+    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var UploadPartCopyRequest$ = [
     3,
@@ -61036,8 +61064,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     n0,
     _UPO,
     0,
-    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC, _VI],
+    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xavi }]]
   ];
   var UploadPartRequest$ = [
     3,
@@ -61047,6 +61075,15 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     [_B, _K, _PN, _UI, _Bo, _CLo, _CMDo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
     [[0, 1], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [() => StreamingBlob, 16], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]],
     4
+  ];
+  var UseSourceMultiRegionKey$ = [
+    3,
+    n0,
+    _USMRK,
+    0,
+    [_S],
+    [0],
+    1
   ];
   var VersioningConfiguration$ = [
     3,
@@ -61306,6 +61343,16 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     [
       () => QueueConfiguration$,
       0
+    ]
+  ];
+  var ReplicationPrefixList = [
+    1,
+    n0,
+    _RPL,
+    0,
+    [
+      0,
+      { [_xN]: _P }
     ]
   ];
   var ReplicationRules = [
@@ -62323,7 +62370,7 @@ var require_dist_cjs17 = __commonJS(function(exports) {
 
   class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
   }
-  var version = "3.1167.0";
+  var version = "3.1174.0";
   var packageInfo = {
     version
   };
@@ -63365,6 +63412,10 @@ var require_dist_cjs17 = __commonJS(function(exports) {
     Disabled: "Disabled",
     Enabled: "Enabled"
   };
+  var UseSourceMultiRegionKeyStatus = {
+    Disabled: "Disabled",
+    Enabled: "Enabled"
+  };
   var MetricsStatus = {
     Disabled: "Disabled",
     Enabled: "Enabled"
@@ -64088,6 +64139,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   exports.ReplicationRule$ = ReplicationRule$;
   exports.ReplicationRuleAndOperator$ = ReplicationRuleAndOperator$;
   exports.ReplicationRuleFilter$ = ReplicationRuleFilter$;
+  exports.ReplicationRuleNotOperator$ = ReplicationRuleNotOperator$;
+  exports.ReplicationRuleOrOperator$ = ReplicationRuleOrOperator$;
   exports.ReplicationRuleStatus = ReplicationRuleStatus;
   exports.ReplicationStatus = ReplicationStatus;
   exports.ReplicationTime$ = ReplicationTime$;
@@ -64178,6 +64231,8 @@ var require_dist_cjs17 = __commonJS(function(exports) {
   exports.UploadPartCopyRequest$ = UploadPartCopyRequest$;
   exports.UploadPartOutput$ = UploadPartOutput$;
   exports.UploadPartRequest$ = UploadPartRequest$;
+  exports.UseSourceMultiRegionKey$ = UseSourceMultiRegionKey$;
+  exports.UseSourceMultiRegionKeyStatus = UseSourceMultiRegionKeyStatus;
   exports.VersioningConfiguration$ = VersioningConfiguration$;
   exports.WebsiteConfiguration$ = WebsiteConfiguration$;
   exports.WriteGetObjectResponse$ = WriteGetObjectResponse$;
@@ -64321,7 +64376,7 @@ var commonParams = {
   Region: { type: "builtInParams", name: "region" },
   UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
 };
-var version = "3.1167.0";
+var version = "3.1174.0";
 var packageInfo = {
   version
 };
@@ -66861,7 +66916,10 @@ var _CP = "CommandPlugins";
 var _CPB = "CreatePatchBaseline";
 var _CPBR = "CreatePatchBaselineRequest";
 var _CPBRr = "CreatePatchBaselineResult";
-var _CPL = "CommandPluginList";
+var _CPL = "CloudProviderList";
+var _CPLo = "CommandPluginList";
+var _CPl = "CloudProviders";
+var _CPlo = "CloudProvider";
 var _CPo = "CommandPlugin";
 var _CRDS = "CreateResourceDataSync";
 var _CRDSR = "CreateResourceDataSyncRequest";
@@ -67185,6 +67243,7 @@ var _GAERe = "GetAutomationExecutionResult";
 var _GAT = "GetAccessToken";
 var _GATR = "GetAccessTokenRequest";
 var _GATRe = "GetAccessTokenResponse";
+var _GC = "GcpConfiguration";
 var _GCC = "GetCloudConnector";
 var _GCCR = "GetCloudConnectorRequest";
 var _GCCRe = "GetCloudConnectorResult";
@@ -67197,6 +67256,7 @@ var _GCSRe = "GetCalendarStateResponse";
 var _GCSRet = "GetConnectionStatusRequest";
 var _GCSReto = "GetConnectionStatusResponse";
 var _GCSe = "GetConnectionStatus";
+var _GCT = "GcpConfigurationTargets";
 var _GD = "GetDocument";
 var _GDPB = "GetDefaultPatchBaseline";
 var _GDPBR = "GetDefaultPatchBaselineRequest";
@@ -67240,7 +67300,7 @@ var _GOMRe = "GetOpsMetadataResult";
 var _GOS = "GetOpsSummary";
 var _GOSR = "GetOpsSummaryRequest";
 var _GOSRe = "GetOpsSummaryResult";
-var _GP = "GetParameter";
+var _GP = "GcpProject";
 var _GPB = "GetPatchBaseline";
 var _GPBFPG = "GetPatchBaselineForPatchGroup";
 var _GPBFPGR = "GetPatchBaselineForPatchGroupRequest";
@@ -67253,11 +67313,13 @@ var _GPBRe = "GetPatchBaselineResult";
 var _GPH = "GetParameterHistory";
 var _GPHR = "GetParameterHistoryRequest";
 var _GPHRe = "GetParameterHistoryResult";
+var _GPL = "GcpProjectList";
 var _GPR = "GetParameterRequest";
 var _GPRe = "GetParameterResult";
 var _GPRet = "GetParametersRequest";
 var _GPReta = "GetParametersResult";
-var _GPe = "GetParameters";
+var _GPe = "GetParameter";
+var _GPet = "GetParameters";
 var _GRP = "GetResourcePolicies";
 var _GRPR = "GetResourcePoliciesRequest";
 var _GRPRE = "GetResourcePoliciesResponseEntry";
@@ -67647,6 +67709,7 @@ var _OIS = "OpsItemSummaries";
 var _OISp = "OpsItemSummary";
 var _OIT = "OpsItemType";
 var _OIp = "OpsItem";
+var _OIr = "OrganizationId";
 var _OL = "OutputLocation";
 var _OM = "OpsMetadata";
 var _OMA = "OpsMetadataArn";
@@ -67695,6 +67758,7 @@ var _PCDL = "PatchComplianceDataList";
 var _PCI = "PutComplianceItems";
 var _PCIR = "PutComplianceItemsRequest";
 var _PCIRu = "PutComplianceItemsResult";
+var _PDN = "ProjectDisplayName";
 var _PET = "PlannedEndTime";
 var _PF = "ParameterFilters";
 var _PFG = "PatchFilterGroup";
@@ -67715,6 +67779,7 @@ var _PI = "PolicyId";
 var _PIP = "ParameterInlinePolicy";
 var _PIR = "PutInventoryRequest";
 var _PIRu = "PutInventoryResult";
+var _PIr = "ProjectId";
 var _PIu = "PutInventory";
 var _PL = "ParameterList";
 var _PLE = "ParameterLimitExceeded";
@@ -67775,11 +67840,13 @@ var _Path = "Path";
 var _Pay = "Payload";
 var _Po = "Policies";
 var _Pol = "Policy";
-var _Pr = "Priority";
+var _Pr = "Provider";
 var _Pre = "Prefix";
+var _Pri = "Priority";
 var _Pro = "Property";
 var _Prod = "Product";
 var _Produ = "Products";
+var _Proj = "Projects";
 var _Prop = "Properties";
 var _Q = "Qualifier";
 var _QC = "QuotaCode";
@@ -67884,12 +67951,13 @@ var _Res = "Response";
 var _Rev = "Reviewer";
 var _Ru = "Runbook";
 var _S = "State";
-var _SAE = "StartAutomationExecution";
+var _SAE = "ServiceAccountEmail";
 var _SAER = "StartAutomationExecutionRequest";
 var _SAERt = "StartAutomationExecutionResult";
 var _SAERto = "StopAutomationExecutionRequest";
 var _SAERtop = "StopAutomationExecutionResult";
-var _SAEt = "StopAutomationExecution";
+var _SAEt = "StartAutomationExecution";
+var _SAEto = "StopAutomationExecution";
 var _SAK = "SecretAccessKey";
 var _SAO = "StartAssociationsOnce";
 var _SAOR = "StartAssociationsOnceRequest";
@@ -67909,6 +67977,8 @@ var _SCRERt = "StartChangeRequestExecutionResult";
 var _SCRe = "SendCommandResult";
 var _SCT = "SyncCreatedTime";
 var _SCe = "SendCommand";
+var _SCt = "StartedCount";
+var _SCu = "SuccessfulCount";
 var _SCy = "SyncCompliance";
 var _SD = "StatusDetails";
 var _SDO = "SchemaDeleteOption";
@@ -68044,11 +68114,12 @@ var _TPL = "TargetPreviewList";
 var _TPN = "TargetParameterName";
 var _TPa = "TaskParameters";
 var _TPar = "TargetPreview";
-var _TS = "TimeoutSeconds";
+var _TS = "TargetsSummary";
 var _TSLEE = "TotalSizeLimitExceededException";
 var _TSR = "TerminateSessionRequest";
 var _TSRe = "TerminateSessionResponse";
 var _TSe = "TerminateSession";
+var _TSi = "TimeoutSeconds";
 var _TSo = "TotalSteps";
 var _TT = "TargetType";
 var _TTa = "TaskType";
@@ -68145,6 +68216,7 @@ var _WEI = "WindowExecutionId";
 var _WETI = "WindowExecutionTaskIdentities";
 var _WETII = "WindowExecutionTaskInvocationIdentities";
 var _WI = "WindowId";
+var _WIPP = "WorkloadIdentityPoolProvider";
 var _WIi = "WindowIdentities";
 var _WM = "WarningMessage";
 var _WTI = "WindowTargetId";
@@ -69633,8 +69705,8 @@ var AutomationExecution$ = [
   n0,
   _AEu,
   0,
-  [_AEI, _DN, _DV, _EST, _EET, _AES, _SEt, _SET, _P, _Ou, _FM, _WM, _Mo, _PAEI, _EB, _CSN, _CA, _TPN, _Ta, _TM, _RTes, _MC, _ME, _Tar, _TL, _PC, _AC, _TA, _TLURL, _ASu, _STc, _R, _OII, _AIs, _CRN, _Var],
-  [0, 0, 0, 4, 4, 0, () => StepExecutionList, 2, [2, n0, _APM, 0, 0, 64 | 0], [2, n0, _APM, 0, 0, 64 | 0], 0, 0, 0, 0, 0, 0, 0, 0, () => Targets, [1, n0, _TM, 0, [2, n0, _TMa, 0, 0, 64 | 0]], () => ResolvedTargets$, 0, 0, 0, () => TargetLocations, () => ProgressCounters$, () => AlarmConfiguration$, () => AlarmStateInformationList, 0, 0, 4, () => Runbooks, 0, 0, 0, [2, n0, _APM, 0, 0, 64 | 0]]
+  [_AEI, _DN, _DV, _EST, _EET, _AES, _SEt, _SET, _P, _Ou, _FM, _WM, _Mo, _PAEI, _EB, _CSN, _CA, _TPN, _Ta, _TM, _RTes, _MC, _ME, _Tar, _TL, _PC, _AC, _TA, _TLURL, _ASu, _STc, _R, _OII, _AIs, _CRN, _Var, _TS],
+  [0, 0, 0, 4, 4, 0, () => StepExecutionList, 2, [2, n0, _APM, 0, 0, 64 | 0], [2, n0, _APM, 0, 0, 64 | 0], 0, 0, 0, 0, 0, 0, 0, 0, () => Targets, [1, n0, _TM, 0, [2, n0, _TMa, 0, 0, 64 | 0]], () => ResolvedTargets$, 0, 0, 0, () => TargetLocations, () => ProgressCounters$, () => AlarmConfiguration$, () => AlarmStateInformationList, 0, 0, 4, () => Runbooks, 0, 0, 0, [2, n0, _APM, 0, 0, 64 | 0], () => TargetsSummary$]
 ];
 var AutomationExecutionFilter$ = [
   3,
@@ -69742,8 +69814,8 @@ var CloudConnectorSummary$ = [
   n0,
   _CCS,
   0,
-  [_CCI, _DNi, _D, _RA, _CAr, _UA],
-  [0, 0, 0, 0, 4, 4]
+  [_CCI, _DNi, _D, _RA, _CAr, _UA, _Pr, _CCA],
+  [0, 0, 0, 0, 4, 4, 0, 0]
 ];
 var CloudWatchOutputConfig$ = [
   3,
@@ -69758,7 +69830,7 @@ var Command$ = [
   n0,
   _C,
   0,
-  [_CI, _DN, _DV, _Co, _EA, _P, _IIn, _Ta, _RDT, _St, _SD, _OSR, _OSBN, _OSKP, _MC, _ME, _TC, _CC, _EC, _DTOC, _SR, _NC, _CWOC, _TS, _AC, _TA],
+  [_CI, _DN, _DV, _Co, _EA, _P, _IIn, _Ta, _RDT, _St, _SD, _OSR, _OSBN, _OSKP, _MC, _ME, _TC, _CC, _EC, _DTOC, _SR, _NC, _CWOC, _TSi, _AC, _TA],
   [0, 0, 0, 0, 4, [() => _Parameters, 0], 64 | 0, () => Targets, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, () => NotificationConfig$, () => CloudWatchOutputConfig$, 1, () => AlarmConfiguration$, () => AlarmStateInformationList]
 ];
 var CommandFilter$ = [
@@ -69901,9 +69973,9 @@ var CreateCloudConnectorRequest$ = [
   n0,
   _CCCR,
   0,
-  [_DNi, _RA, _Con, _CCA, _D, _T],
+  [_DNi, _RA, _Con, _D, _CCA, _T],
   [0, 0, () => CloudConnectorConfiguration$, 0, 0, () => TagList],
-  4
+  3
 ];
 var CreateCloudConnectorResult$ = [
   3,
@@ -69918,8 +69990,8 @@ var CreateDocumentRequest$ = [
   n0,
   _CDR,
   0,
-  [_Cont, _N, _Req, _At, _DNi, _VN, _DT, _DF, _TT, _T],
-  [0, 0, () => DocumentRequiresList, () => AttachmentsSourceList, 0, 0, 0, 0, 0, () => TagList],
+  [_Cont, _N, _Req, _At, _DNi, _VN, _DT, _DF, _TT, _T, _CPl],
+  [0, 0, () => DocumentRequiresList, () => AttachmentsSourceList, 0, 0, 0, 0, 0, () => TagList, [() => CloudProviderList, 0]],
   2
 ];
 var CreateDocumentResult$ = [
@@ -69952,7 +70024,7 @@ var CreateOpsItemRequest$ = [
   n0,
   _COIR,
   0,
-  [_D, _Sou, _Ti, _OIT, _OD, _No, _Pr, _ROI, _T, _Ca, _Se, _AST, _AETc, _PST, _PET, _AIc],
+  [_D, _Sou, _Ti, _OIT, _OD, _No, _Pri, _ROI, _T, _Ca, _Se, _AST, _AETc, _PST, _PET, _AIc],
   [0, 0, 0, 0, () => OpsItemOperationalData, () => OpsItemNotifications, 1, () => RelatedOpsItems, () => TagList, 0, 0, 4, 4, 4, 4, 0],
   3
 ];
@@ -70914,8 +70986,8 @@ var DocumentDescription$ = [
   n0,
   _DD,
   0,
-  [_Sha, _H, _HT, _N, _DNi, _VN, _Ow, _CD, _St, _SI, _DV, _D, _P, _PTl, _DT, _SV, _LV, _DVe, _DF, _TT, _T, _AItt, _Req, _Au, _RIe, _AVp, _PRV, _RS, _Ca, _CEa],
-  [0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, [() => DocumentParameterList, 0], [() => PlatformTypeList, 0], 0, 0, 0, 0, 0, 0, () => TagList, [() => AttachmentInformationList, 0], () => DocumentRequiresList, 0, [() => ReviewInformationList, 0], 0, 0, 0, 64 | 0, 64 | 0]
+  [_Sha, _H, _HT, _N, _DNi, _VN, _Ow, _CD, _St, _SI, _DV, _D, _P, _PTl, _DT, _SV, _LV, _DVe, _DF, _TT, _T, _AItt, _Req, _Au, _RIe, _AVp, _PRV, _RS, _Ca, _CEa, _CPl],
+  [0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, [() => DocumentParameterList, 0], [() => PlatformTypeList, 0], 0, 0, 0, 0, 0, 0, () => TagList, [() => AttachmentInformationList, 0], () => DocumentRequiresList, 0, [() => ReviewInformationList, 0], 0, 0, 0, 64 | 0, 64 | 0, [() => CloudProviderList, 0]]
 ];
 var DocumentFilter$ = [
   3,
@@ -70931,8 +71003,8 @@ var DocumentIdentifier$ = [
   n0,
   _DIo,
   0,
-  [_N, _CD, _DNi, _Ow, _VN, _PTl, _DV, _DT, _SV, _DF, _TT, _T, _Req, _RS, _Au],
-  [0, 4, 0, 0, 0, [() => PlatformTypeList, 0], 0, 0, 0, 0, 0, () => TagList, () => DocumentRequiresList, 0, 0]
+  [_N, _CD, _DNi, _Ow, _VN, _PTl, _DV, _DT, _SV, _DF, _TT, _T, _Req, _RS, _Au, _CPl],
+  [0, 4, 0, 0, 0, [() => PlatformTypeList, 0], 0, 0, 0, 0, 0, () => TagList, () => DocumentRequiresList, 0, 0, [() => CloudProviderList, 0]]
 ];
 var DocumentKeyValuesFilter$ = [
   3,
@@ -70997,8 +71069,8 @@ var DocumentVersionInfo$ = [
   n0,
   _DVI,
   0,
-  [_N, _DNi, _DV, _VN, _CD, _IDVs, _DF, _St, _SI, _RS],
-  [0, 0, 0, 0, 4, 2, 0, 0, 0, 0]
+  [_N, _DNi, _DV, _VN, _CD, _IDVs, _DF, _St, _SI, _RS, _CPl],
+  [0, 0, 0, 0, 4, 2, 0, 0, 0, 0, [() => CloudProviderList, 0]]
 ];
 var EffectivePatch$ = [
   3,
@@ -71023,6 +71095,24 @@ var FailureDetails$ = [
   0,
   [_FS, _FT, _De],
   [0, 0, [2, n0, _APM, 0, 0, 64 | 0]]
+];
+var GcpConfiguration$ = [
+  3,
+  n0,
+  _GC,
+  0,
+  [_WIPP, _SAE, _OIr, _Ta],
+  [0, 0, 0, () => GcpConfigurationTargets$],
+  2
+];
+var GcpProject$ = [
+  3,
+  n0,
+  _GP,
+  0,
+  [_PIr, _PDN],
+  [0, 0],
+  1
 ];
 var GetAccessTokenRequest$ = [
   3,
@@ -71273,7 +71363,7 @@ var GetMaintenanceWindowExecutionTaskResult$ = [
   n0,
   _GMWETRe,
   0,
-  [_WEI, _TEI, _TAa, _SR, _Ty, _TPa, _Pr, _MC, _ME, _St, _SD, _STt, _ETn, _AC, _TA],
+  [_WEI, _TEI, _TAa, _SR, _Ty, _TPa, _Pri, _MC, _ME, _St, _SD, _STt, _ETn, _AC, _TA],
   [0, 0, 0, 0, 0, [() => MaintenanceWindowTaskParametersList, 0], 1, 0, 0, 0, 0, 4, 4, () => AlarmConfiguration$, () => AlarmStateInformationList]
 ];
 var GetMaintenanceWindowRequest$ = [
@@ -71307,7 +71397,7 @@ var GetMaintenanceWindowTaskResult$ = [
   n0,
   _GMWTRe,
   0,
-  [_WI, _WTIi, _Ta, _TAa, _SRA, _TTa, _TPa, _TIP, _Pr, _MC, _ME, _LI, _N, _D, _CB, _AC],
+  [_WI, _WTIi, _Ta, _TAa, _SRA, _TTa, _TPa, _TIP, _Pri, _MC, _ME, _LI, _N, _D, _CB, _AC],
   [0, 0, () => Targets, 0, 0, 0, [() => MaintenanceWindowTaskParameters, 0], [() => MaintenanceWindowTaskInvocationParameters$, 0], 1, 0, 0, () => LoggingInfo$, 0, [() => MaintenanceWindowDescription, 0], 0, () => AlarmConfiguration$]
 ];
 var GetOpsItemRequest$ = [
@@ -71894,7 +71984,7 @@ var ListDocumentVersionsResult$ = [
   _LDVRi,
   0,
   [_DVo, _NT],
-  [() => DocumentVersionList, 0]
+  [[() => DocumentVersionList, 0], 0]
 ];
 var ListInventoryEntriesRequest$ = [
   3,
@@ -72121,7 +72211,7 @@ var MaintenanceWindowRunCommandParameters$ = [
   n0,
   _MWRCP,
   0,
-  [_Co, _CWOC, _DH, _DHT, _DV, _NC, _OSBN, _OSKP, _P, _SRA, _TS],
+  [_Co, _CWOC, _DH, _DHT, _DV, _NC, _OSBN, _OSKP, _P, _SRA, _TSi],
   [0, () => CloudWatchOutputConfig$, 0, 0, 0, () => NotificationConfig$, 0, 0, [() => _Parameters, 0], 0, 1]
 ];
 var MaintenanceWindowStepFunctionsParameters$ = [
@@ -72145,7 +72235,7 @@ var MaintenanceWindowTask$ = [
   n0,
   _MWTa,
   0,
-  [_WI, _WTIi, _TAa, _Ty, _Ta, _TPa, _Pr, _LI, _SRA, _MC, _ME, _N, _D, _CB, _AC],
+  [_WI, _WTIi, _TAa, _Ty, _Ta, _TPa, _Pri, _LI, _SRA, _MC, _ME, _N, _D, _CB, _AC],
   [0, 0, 0, 0, () => Targets, [() => MaintenanceWindowTaskParameters, 0], 1, () => LoggingInfo$, 0, 0, 0, 0, [() => MaintenanceWindowDescription, 0], 0, () => AlarmConfiguration$]
 ];
 var MaintenanceWindowTaskInvocationParameters$ = [
@@ -72277,7 +72367,7 @@ var OpsItem$ = [
   n0,
   _OIp,
   0,
-  [_CBr, _OIT, _CT, _D, _LMB, _LMT, _No, _Pr, _ROI, _St, _OII, _Ve, _Ti, _Sou, _OD, _Ca, _Se, _AST, _AETc, _PST, _PET, _OIA],
+  [_CBr, _OIT, _CT, _D, _LMB, _LMT, _No, _Pri, _ROI, _St, _OII, _Ve, _Ti, _Sou, _OD, _Ca, _Se, _AST, _AETc, _PST, _PET, _OIA],
   [0, 0, 4, 0, 0, 4, () => OpsItemNotifications, 1, () => RelatedOpsItems, 0, 0, 0, 0, 0, () => OpsItemOperationalData, 0, 0, 4, 4, 4, 4, 0]
 ];
 var OpsItemDataValue$ = [
@@ -72352,7 +72442,7 @@ var OpsItemSummary$ = [
   n0,
   _OISp,
   0,
-  [_CBr, _CT, _LMB, _LMT, _Pr, _Sou, _St, _OII, _Ti, _OD, _Ca, _Se, _OIT, _AST, _AETc, _PST, _PET],
+  [_CBr, _CT, _LMB, _LMT, _Pri, _Sou, _St, _OII, _Ti, _OD, _Ca, _Se, _OIT, _AST, _AETc, _PST, _PET],
   [0, 4, 0, 4, 1, 0, 0, 0, 0, () => OpsItemOperationalData, 0, 0, 0, 4, 4, 4, 4]
 ];
 var OpsMetadata$ = [
@@ -72690,7 +72780,7 @@ var RegisterTaskWithMaintenanceWindowRequest$ = [
   n0,
   _RTWMWReg,
   0,
-  [_WI, _TAa, _TTa, _Ta, _SRA, _TPa, _TIP, _Pr, _MC, _ME, _LI, _N, _D, _CTl, _CB, _AC],
+  [_WI, _TAa, _TTa, _Ta, _SRA, _TPa, _TIP, _Pri, _MC, _ME, _LI, _N, _D, _CTl, _CB, _AC],
   [0, 0, 0, () => Targets, 0, [() => MaintenanceWindowTaskParameters, 0], [() => MaintenanceWindowTaskInvocationParameters$, 0], 1, 0, 0, () => LoggingInfo$, 0, [() => MaintenanceWindowDescription, 0], [0, 4], 0, () => AlarmConfiguration$],
   3
 ];
@@ -72918,7 +73008,7 @@ var SendCommandRequest$ = [
   n0,
   _SCR,
   0,
-  [_DN, _IIn, _Ta, _DV, _DH, _DHT, _TS, _Co, _P, _OSR, _OSBN, _OSKP, _MC, _ME, _SRA, _NC, _CWOC, _AC],
+  [_DN, _IIn, _Ta, _DV, _DH, _DHT, _TSi, _Co, _P, _OSR, _OSBN, _OSKP, _MC, _ME, _SRA, _NC, _CWOC, _AC],
   [0, 64 | 0, () => Targets, 0, 0, 0, 1, 0, [() => _Parameters, 0], 0, 0, 0, 0, 0, 0, () => NotificationConfig$, () => CloudWatchOutputConfig$, () => AlarmConfiguration$],
   1
 ];
@@ -73078,7 +73168,7 @@ var StepExecution$ = [
   n0,
   _SEte,
   0,
-  [_SNt, _Ac, _TS, _OFn, _MA, _EST, _EET, _SSt, _RCes, _Inpu, _Ou, _Res, _FM, _WM, _FD, _SEI, _OP, _IE, _NS, _ICs, _VNS, _Ta, _TLar, _TA, _PSD],
+  [_SNt, _Ac, _TSi, _OFn, _MA, _EST, _EET, _SSt, _RCes, _Inpu, _Ou, _Res, _FM, _WM, _FD, _SEI, _OP, _IE, _NS, _ICs, _VNS, _Ta, _TLar, _TA, _PSD],
   [0, 0, 1, 0, 1, 4, 4, 0, 0, 128 | 0, [2, n0, _APM, 0, 0, 64 | 0], 0, 0, 0, () => FailureDetails$, 0, [2, n0, _APM, 0, 0, 64 | 0], 2, 0, 2, 64 | 0, () => Targets, () => TargetLocation$, () => AlarmStateInformationList, () => ParentStepDetails$]
 ];
 var StepExecutionFilter$ = [
@@ -73139,6 +73229,14 @@ var TargetPreview$ = [
   0,
   [_Cou, _TT],
   [1, 0]
+];
+var TargetsSummary$ = [
+  3,
+  n0,
+  _TS,
+  0,
+  [_TCo, _SCt, _CC, _SCu, _FC],
+  [1, 1, 1, 1, 1]
 ];
 var TerminateSessionRequest$ = [
   3,
@@ -73264,8 +73362,8 @@ var UpdateDocumentRequest$ = [
   n0,
   _UDR,
   0,
-  [_Cont, _N, _At, _DNi, _VN, _DV, _DF, _TT],
-  [0, 0, () => AttachmentsSourceList, 0, 0, 0, 0, 0],
+  [_Cont, _N, _At, _DNi, _VN, _DV, _DF, _TT, _CPl],
+  [0, 0, () => AttachmentsSourceList, 0, 0, 0, 0, 0, [() => CloudProviderList, 0]],
   2
 ];
 var UpdateDocumentResult$ = [
@@ -73315,7 +73413,7 @@ var UpdateMaintenanceWindowTaskRequest$ = [
   n0,
   _UMWTRpd,
   0,
-  [_WI, _WTIi, _Ta, _TAa, _SRA, _TPa, _TIP, _Pr, _MC, _ME, _LI, _N, _D, _Repl, _CB, _AC],
+  [_WI, _WTIi, _Ta, _TAa, _SRA, _TPa, _TIP, _Pri, _MC, _ME, _LI, _N, _D, _Repl, _CB, _AC],
   [0, 0, () => Targets, 0, 0, [() => MaintenanceWindowTaskParameters, 0], [() => MaintenanceWindowTaskInvocationParameters$, 0], 1, 0, 0, () => LoggingInfo$, 0, [() => MaintenanceWindowDescription, 0], 2, 0, () => AlarmConfiguration$],
   2
 ];
@@ -73324,7 +73422,7 @@ var UpdateMaintenanceWindowTaskResult$ = [
   n0,
   _UMWTRpda,
   0,
-  [_WI, _WTIi, _Ta, _TAa, _SRA, _TPa, _TIP, _Pr, _MC, _ME, _LI, _N, _D, _CB, _AC],
+  [_WI, _WTIi, _Ta, _TAa, _SRA, _TPa, _TIP, _Pri, _MC, _ME, _LI, _N, _D, _CB, _AC],
   [0, 0, () => Targets, 0, 0, [() => MaintenanceWindowTaskParameters, 0], [() => MaintenanceWindowTaskInvocationParameters$, 0], 1, 0, 0, () => LoggingInfo$, 0, [() => MaintenanceWindowDescription, 0], 0, () => AlarmConfiguration$]
 ];
 var UpdateManagedInstanceRoleRequest$ = [
@@ -73349,7 +73447,7 @@ var UpdateOpsItemRequest$ = [
   n0,
   _UOIR,
   0,
-  [_OII, _D, _OD, _ODTD, _No, _Pr, _ROI, _St, _Ti, _Ca, _Se, _AST, _AETc, _PST, _PET, _OIA],
+  [_OII, _D, _OD, _ODTD, _No, _Pri, _ROI, _St, _Ti, _Ca, _Se, _AST, _AETc, _PST, _PET, _OIA],
   [0, 0, () => OpsItemOperationalData, 64 | 0, () => OpsItemNotifications, 1, () => RelatedOpsItems, 0, 0, 0, 0, 4, 4, 4, 4, 0],
   1
 ];
@@ -73652,6 +73750,16 @@ var CloudConnectorSummaryList = [
   0,
   () => CloudConnectorSummary$
 ];
+var CloudProviderList = [
+  1,
+  n0,
+  _CPL,
+  0,
+  [
+    0,
+    { [_xN]: _CPlo }
+  ]
+];
 var CommandFilterList = [
   1,
   n0,
@@ -73679,7 +73787,7 @@ var CommandList = [
 var CommandPluginList = [
   1,
   n0,
-  _CPL,
+  _CPLo,
   0,
   () => CommandPlugin$
 ];
@@ -73810,7 +73918,10 @@ var DocumentVersionList = [
   n0,
   _DVL,
   0,
-  () => DocumentVersionInfo$
+  [
+    () => DocumentVersionInfo$,
+    0
+  ]
 ];
 var EffectivePatchList = [
   1,
@@ -73828,6 +73939,13 @@ var FailedCreateAssociationList = [
     () => FailedCreateAssociation$,
     { [_xN]: _FCAE }
   ]
+];
+var GcpProjectList = [
+  1,
+  n0,
+  _GPL,
+  0,
+  () => GcpProject$
 ];
 var GetResourcePoliciesResponseEntries = [
   1,
@@ -74603,8 +74721,8 @@ var CloudConnectorConfiguration$ = [
   n0,
   _CCC,
   0,
-  [_ACz],
-  [() => AzureConfiguration$]
+  [_ACz, _GC],
+  [() => AzureConfiguration$, () => GcpConfiguration$]
 ];
 var ConfigurationTargets$ = [
   4,
@@ -74629,6 +74747,14 @@ var ExecutionPreview$ = [
   0,
   [_Aut],
   [() => AutomationExecutionPreview$]
+];
+var GcpConfigurationTargets$ = [
+  4,
+  n0,
+  _GCT,
+  0,
+  [_Proj],
+  [() => GcpProjectList]
 ];
 var NodeType$ = [
   4,
@@ -75329,7 +75455,7 @@ var GetOpsSummary$ = [
 var GetParameter$ = [
   9,
   n0,
-  _GP,
+  _GPe,
   0,
   () => GetParameterRequest$,
   () => GetParameterResult$
@@ -75345,7 +75471,7 @@ var GetParameterHistory$ = [
 var GetParameters$ = [
   9,
   n0,
-  _GPe,
+  _GPet,
   0,
   () => GetParametersRequest$,
   () => GetParametersResult$
@@ -75689,7 +75815,7 @@ var StartAssociationsOnce$ = [
 var StartAutomationExecution$ = [
   9,
   n0,
-  _SAE,
+  _SAEt,
   0,
   () => StartAutomationExecutionRequest$,
   () => StartAutomationExecutionResult$
@@ -75721,7 +75847,7 @@ var StartSession$ = [
 var StopAutomationExecution$ = [
   9,
   n0,
-  _SAEt,
+  _SAEto,
   0,
   () => StopAutomationExecutionRequest$,
   () => StopAutomationExecutionResult$
@@ -77210,6 +77336,7 @@ class Upload extends EventEmitter {
         ETag: partResult.ETag,
         ...partResult.ChecksumCRC32 && { ChecksumCRC32: partResult.ChecksumCRC32 },
         ...partResult.ChecksumCRC32C && { ChecksumCRC32C: partResult.ChecksumCRC32C },
+        ...partResult.ChecksumCRC64NVME && { ChecksumCRC64NVME: partResult.ChecksumCRC64NVME },
         ...partResult.ChecksumSHA1 && { ChecksumSHA1: partResult.ChecksumSHA1 },
         ...partResult.ChecksumSHA256 && { ChecksumSHA256: partResult.ChecksumSHA256 }
       });

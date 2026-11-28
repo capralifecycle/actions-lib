@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@types/bun": "1.4.5",
-    "@types/node": "26.6.7",
+    "@types/node": "26.6.10",
     "semantic-release": "26.0.1",
     "typescript": "7.0.2"
   },
